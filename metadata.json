@@ -1,0 +1,8 @@
+{
+  "name": "DockFlow Logistics Dashboard",
+  "description": "A comprehensive logistics management dashboard for overseeing dock operations, vehicle traffic, and reporting.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "prompt": ""
+}

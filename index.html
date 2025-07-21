@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DockFlow</title>
+    <meta name="theme-color" content="#2c3e50" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="DockFlow">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'brand-dark': '#2c3e50',
+              'brand-light': '#34495e',
+              'brand-accent': '#794575',
+              'brand-text': '#ecf0f1',
+              'status-green': '#10b981',
+              'status-yellow': '#f59e0b',
+              'status-red': '#ef4444',
+              primary: {
+                50: '#fbf5fa',
+                100: '#f1dff0',
+                200: '#e3bbdf',
+                300: '#ce9dcc',
+                400: '#b283b0',
+                500: '#966593',
+                600: '#794575',
+                700: '#693a65',
+                800: '#582e55',
+                900: '#472345',
+              },
+              'dock-activity-status-loading-bg': '#DBEAFE', // blue-100
+              'dock-activity-status-loading-text': '#1E40AF', // blue-800
+              'dock-activity-status-unloading-bg': '#E9D5FF', // purple-100
+              'dock-activity-status-unloading-text': '#5B21B6', // purple-800
+              'dock-activity-status-completed-bg': '#D1FAE5', // green-100
+              'dock-activity-status-completed-text': '#065F46', // green-800
+              'dock-activity-status-idle-bg': '#F3F4F6', // gray-100
+              'dock-activity-status-idle-text': '#374151', // gray-700
+              'timeline-waiting': '#FBBF24', // amber-400
+              'timeline-approved': '#3B82F6', // blue-500
+              'timeline-cancelled': '#EF4444', // red-500
+              'timeline-done': '#10B981', // green-500
+            },
+            fontFamily: {
+              sans: ['Poppins', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      @keyframes pulse-bg {
+        50% { background-color: rgba(233, 213, 255, 0.6); } /* purple-200 with opacity */
+      }
+      .animate-pulse-bg {
+        animation: pulse-bg 2s ease-in-out;
+      }
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      .scrollbar-hide {
+          -ms-overflow-style: none;  /* IE and Edge */
+          scrollbar-width: none;  /* Firefox */
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "@google/genai": "https://esm.sh/@google/genai@^1.8.0",
+    "recharts": "https://esm.sh/recharts@2.12.7",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="text-sm">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }).catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
