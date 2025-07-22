@@ -158,7 +158,7 @@ const Configurations: React.FC<ConfigurationsProps> = (props) => {
 
   const tabs = [
     { id: 'warehouse', label: 'Warehouse & Docks', icon: <BuildingOfficeIcon className="w-5 h-5" /> },
-    { id: 'operations', label: 'Operations', icon: <PlayCircleIcon className="w-5 h-5" /> },
+    //{ id: 'operations', label: 'Operations', icon: <PlayCircleIcon className="w-5 h-5" /> },
     { id: 'timeslots', label: 'Time Slots', icon: <ClockIcon className="w-5 h-5" /> },
   ];
 

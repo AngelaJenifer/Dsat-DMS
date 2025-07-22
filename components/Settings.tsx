@@ -39,7 +39,8 @@ const Settings: React.FC<SettingsProps> = ({ users, settings, onDeleteUser, onSe
     const roleDescriptions: Record<Role, string> = {
         [Role.Admin]: "Has full access to all system features, settings, and user management.",
         [Role.Manager]: "Can manage appointments, docks, and operations, but has limited access to system settings.",
-        [Role.GateKeeper]: "Responsible for vehicle check-in/check-out and gate management."
+        [Role.GateKeeper]: "Responsible for vehicle check-in/check-out and gate management.",
+        [Role.DockOperator]: "Manages dock status, vehicle operations at the dock, and views related appointments and documents."
     };
 
     const rolesData = useMemo(() => {
