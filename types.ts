@@ -6,6 +6,8 @@
 
 
 
+
+
 export enum WarehouseType {
     Fulfillment = 'Fulfillment',
     Distribution = 'Distribution',
@@ -186,6 +188,7 @@ export enum Role {
   Admin = 'Admin',
   Manager = 'Manager',
   GateKeeper = 'Gate Keeper',
+  DockOperator = 'Dock Operator',
 }
 
 export interface User {

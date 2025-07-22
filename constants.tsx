@@ -3,6 +3,8 @@
 
 
 
+
+
 import React from 'react';
 import { Dock, Vehicle, DockStatus, VehicleStatus, Operation, OperationType, OperationStatus, Carrier, Vendor, Document, DocumentType, DocumentStatus, Role, User, AppSettings, TimelineDock, TimelineAppointment, TimelineAppointmentStatus, ActivityLog, ActivityLogType, Warehouse, WarehouseType, DockType } from './types.ts';
 import {
@@ -418,6 +420,7 @@ export const USERS_DATA: User[] = [
   { id: 'U01', name: 'John Doe', email: 'john.doe@abclogistics.com', role: Role.GateKeeper, avatarUrl: 'https://picsum.photos/seed/user1/40/40' },
   { id: 'U02', name: 'Jane Smith', email: 'jane.smith@abclogistics.com', role: Role.Manager, avatarUrl: 'https://picsum.photos/seed/user2/40/40' },
   { id: 'U03', name: 'Admin User', email: 'admin@abclogistics.com', role: Role.Admin, avatarUrl: 'https://picsum.photos/seed/user3/40/40' },
+  { id: 'U04', name: 'Mike Ross', email: 'mike.ross@abclogistics.com', role: Role.DockOperator, avatarUrl: 'https://picsum.photos/seed/user4/40/40' },
 ];
 
 export const INITIAL_SETTINGS_DATA: AppSettings = {
