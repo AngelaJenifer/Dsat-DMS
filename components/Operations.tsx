@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Operation, OperationStatus, Vehicle, VehicleStatus } from '../types.ts';
+import { Operation, OperationStatus, Vehicle, VehicleStatus, Dock } from '../types.ts';
 import ReportDelayModal from './ReportDelayModal.tsx';
 import { PlusIcon } from './icons/Icons.tsx';
 
 interface OperationsProps {
   operations: Operation[];
   vehicles: Vehicle[];
+  docks: Dock[];
   onStartOperationSimple: (vehicleId: string) => void;
   onCompleteOperation: (operationId: string) => void;
   onReportDelay: (operationId: string, reason: string) => void;
@@ -47,7 +48,7 @@ const OperationProgressBar: React.FC<{operation: Operation}> = ({operation}) => 
 };
 
 
-const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOperationSimple, onCompleteOperation, onReportDelay, onOpenStartOperationModal }) => {
+const Operations: React.FC<OperationsProps> = ({ operations, vehicles, docks, onStartOperationSimple, onCompleteOperation, onReportDelay, onOpenStartOperationModal }) => {
   const [delayModalOp, setDelayModalOp] = useState<Operation | null>(null);
   
   const activeOperations = useMemo(() => operations.filter(op => op.status === OperationStatus.InProgress || op.status === OperationStatus.Delayed), [operations]);
@@ -63,7 +64,8 @@ const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOp
       .filter(op => op.status === OperationStatus.Completed && op.actualCompletionTime && new Date(op.actualCompletionTime).toDateString() === todayStr)
       .sort((a, b) => b.actualCompletionTime! - a.actualCompletionTime!);
   }, [operations]);
-  
+
+  const getDockName = (dockId: string) => docks.find(d => d.id === dockId)?.name || dockId;
   const getVehicleById = (vehicleId: string) => vehicles.find(v => v.id === vehicleId);
 
   const handleReportDelaySubmit = (operationId: string, reason: string) => {
@@ -81,7 +83,7 @@ const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOp
             </div>
             <button 
                 onClick={onOpenStartOperationModal}
-                className="bg-brand-accent text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-brand-accent/90 transition-transform transform hover:scale-105 flex items-center gap-2"
+                className="bg-primary-600 text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-primary-700 transition-transform transform hover:scale-105 flex items-center gap-2"
             >
                 <PlusIcon className="w-5 h-5" />
                 Start New Operation
@@ -98,7 +100,7 @@ const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOp
               {vehiclesAwaitingOperation.map(vehicle => (
                   <div key={vehicle.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors duration-200">
                     <p className="font-bold text-gray-800">{vehicle.id} <span className="font-normal text-gray-600">({vehicle.carrier})</span></p>
-                    <p className="text-sm text-gray-500 mt-1">At Dock: <span className="font-semibold">{vehicle.assignedDockId}</span></p>
+                    <p className="text-sm text-gray-500 mt-1">At Dock: <span className="font-semibold">{getDockName(vehicle.assignedDockId)}</span></p>
                     <div className="mt-4 pt-4 border-t flex justify-end">
                         <button onClick={() => onStartOperationSimple(vehicle.id)} className="bg-status-green text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-status-green/90 transition-transform transform hover:scale-105">
                             Start Operation
@@ -119,7 +121,7 @@ const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOp
                   const isDelayed = op.status === OperationStatus.Delayed;
                   return (
                      <div key={op.id} className={`p-4 rounded-lg border-l-4 ${isDelayed ? 'border-red-400 bg-red-50/50' : 'border-blue-400 bg-blue-50/50'}`}>
-                        <p className="font-bold text-gray-800">{vehicle?.id} at {op.dockId}</p>
+                        <p className="font-bold text-gray-800">{vehicle?.id} at {getDockName(op.dockId)}</p>
                         <p className="text-sm text-gray-600 font-semibold">{op.type}</p>
                         {isDelayed && <p className="text-xs text-red-600 mt-1 italic">{op.delayReason}</p>}
                         
@@ -150,7 +152,7 @@ const Operations: React.FC<OperationsProps> = ({ operations, vehicles, onStartOp
                     <div key={op.id} className="p-3 border-l-4 border-green-500 bg-green-50/50 rounded-r-lg">
                         <p className="font-semibold text-gray-700">{vehicle?.id} - {op.type}</p>
                         <p className="text-sm text-gray-500">
-                            Completed at {formatTime(op.actualCompletionTime!)} from Dock {op.dockId}
+                            Completed at {formatTime(op.actualCompletionTime!)} from Dock {getDockName(op.dockId)}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                             Duration: <span className="font-semibold">{formatDuration(op.startTime, op.actualCompletionTime!)}</span>

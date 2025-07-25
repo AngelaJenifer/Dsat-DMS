@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Carrier } from '../types.ts';
+import { Customer, CustomerType } from '../types.ts';
 import { ICONS } from '../constants.tsx';
 
 interface CarrierModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (carrier: Omit<Carrier, 'id'> & { id?: string }) => void;
-  carrier: Carrier | null;
+  onSave: (carrier: Omit<Customer, 'id'> & { id?: string }) => void;
+  carrier: Customer | null;
 }
 
 const CarrierModal: React.FC<CarrierModalProps> = ({ isOpen, onClose, onSave, carrier }) => {
-  const [formData, setFormData] = useState<Omit<Carrier, 'id' | 'totalAppointments' | 'lastAppointmentDate' | 'activeTrucks'>>({
+  const [formData, setFormData] = useState<Omit<Customer, 'id' | 'customerType' | 'totalAppointments' | 'lastAppointmentDate'>>({
     name: '',
     contactPerson: '',
     email: '',
@@ -48,7 +48,7 @@ const CarrierModal: React.FC<CarrierModalProps> = ({ isOpen, onClose, onSave, ca
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ ...formData, id: carrier?.id });
+    onSave({ ...formData, id: carrier?.id, customerType: CustomerType.Carrier });
     onClose();
   };
 
@@ -106,7 +106,7 @@ const CarrierModal: React.FC<CarrierModalProps> = ({ isOpen, onClose, onSave, ca
             </button>
             <button
               type="submit"
-              className="bg-brand-accent text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-brand-accent/90 focus:outline-none transition-transform transform hover:scale-105"
+              className="bg-primary-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-primary-700 focus:outline-none transition-transform transform hover:scale-105"
             >
               {carrier ? 'Save Changes' : 'Add Carrier'}
             </button>

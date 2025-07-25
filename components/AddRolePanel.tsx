@@ -33,10 +33,12 @@ export interface PermissionsState {
 interface AddRolePanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (roleData: { roleName: string; roleDescription: string; permissions: PermissionsState; }) => void;
+  onSave: (roleData: { roleName: string; roleDescription: string; permissions: PermissionsState; isEditing?: boolean; }) => void;
+  editingRole: { name: string; description: string; } | null;
 }
 
-const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) => {
+const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave, editingRole }) => {
+  const isEditing = !!editingRole;
   const [roleName, setRoleName] = useState('');
   const [roleDescription, setRoleDescription] = useState('');
   const [permissions, setPermissions] = useState<PermissionsState>({});
@@ -44,18 +46,19 @@ const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) 
   useEffect(() => {
     if (isOpen) {
       // Reset form when panel is opened
-      setRoleName('');
-      setRoleDescription('');
+      setRoleName(isEditing ? editingRole.name : '');
+      setRoleDescription(isEditing ? editingRole.description : '');
+      
       const initialPermissions: PermissionsState = {};
       MODULES.forEach(module => {
         initialPermissions[module] = {
-          accessLevel: 'None',
+          accessLevel: 'None', // Per spec, always reset permissions
           granular: GRANULAR_PERMISSIONS.reduce((acc, p) => ({ ...acc, [p.id]: false }), {})
         };
       });
       setPermissions(initialPermissions);
     }
-  }, [isOpen]);
+  }, [isOpen, editingRole, isEditing]);
 
   const handleAccessLevelChange = (module: string, level: AccessLevel) => {
     setPermissions(prev => {
@@ -89,10 +92,10 @@ const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) 
         alert('Please provide a Role Name.');
         return;
     }
-    onSave({ roleName, roleDescription, permissions });
+    onSave({ roleName, roleDescription, permissions, isEditing });
   };
 
-  const baseInputClasses = "mt-1 w-full px-3 py-2 border bg-gray-100 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent text-sm";
+  const baseInputClasses = "mt-1 w-full px-3 py-2 border bg-gray-100 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent text-sm text-gray-900 placeholder:text-gray-500 disabled:bg-gray-200 disabled:text-gray-500";
 
   return (
     <>
@@ -101,11 +104,13 @@ const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) 
             <form onSubmit={handleSubmit} className="flex flex-col h-full">
                 <div className="p-5 border-b border-gray-200">
                     <div className="flex justify-between items-center">
-                       <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><UserIcon className="w-6 h-6" /> Add New Role</h2>
+                       <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                            <UserIcon className="w-6 h-6" /> {isEditing ? 'Edit Role' : 'Add New Role'}
+                       </h2>
                        <button type="button" onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"><XCircleIcon className="w-6 h-6"/></button>
                     </div>
                      <p className="text-sm text-gray-500 mt-1">
-                        Define a new role and configure its permissions.
+                        {isEditing ? `Editing permissions for the '${roleName}' role.` : 'Define a new role and configure its permissions.'}
                      </p>
                 </div>
 
@@ -115,7 +120,7 @@ const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) 
                         <div className="space-y-4">
                             <div>
                                 <label htmlFor="roleName" className="block text-sm font-medium text-gray-700">Role Name <span className="text-red-500">*</span></label>
-                                <input type="text" name="roleName" id="roleName" value={roleName} onChange={(e) => setRoleName(e.target.value)} className={baseInputClasses} required />
+                                <input type="text" name="roleName" id="roleName" value={roleName} onChange={(e) => setRoleName(e.target.value)} className={baseInputClasses} disabled={isEditing} required />
                             </div>
                             <div>
                                 <label htmlFor="roleDescription" className="block text-sm font-medium text-gray-700">Role Description</label>
@@ -189,8 +194,8 @@ const AddRolePanel: React.FC<AddRolePanelProps> = ({ isOpen, onClose, onSave }) 
 
                 <div className="flex-shrink-0 flex justify-end items-center p-4 border-t border-gray-200 bg-white gap-2">
                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors">Cancel</button>
-                   <button type="submit" className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-brand-accent hover:bg-brand-accent/90 transition-colors">
-                    Save Role
+                   <button type="submit" className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 transition-colors">
+                    {isEditing ? 'Save Changes' : 'Save Role'}
                    </button>
                 </div>
             </form>

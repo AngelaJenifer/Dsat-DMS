@@ -47,7 +47,7 @@ const OptimalSlotFinderModal: React.FC<OptimalSlotFinderModalProps> = ({ isOpen,
                     
                     <div className="mt-8 flex justify-end space-x-4">
                         <button type="button" onClick={onClose} className="bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">Cancel</button>
-                        <button type="submit" disabled={isFinding} className="bg-brand-accent text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-brand-accent/90 disabled:bg-gray-400">
+                        <button type="submit" disabled={isFinding} className="bg-primary-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-primary-700 disabled:bg-gray-400">
                             {isFinding ? 'Finding...' : 'Find Slot'}
                         </button>
                     </div>

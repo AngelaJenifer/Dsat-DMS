@@ -1,4 +1,5 @@
 
+
 export const parseAppointmentTime = (timeStr: string): Date => {
   const today = new Date();
   
@@ -29,6 +30,8 @@ export const parseAppointmentTime = (timeStr: string): Date => {
   return today;
 };
 
+export const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+
 
 export const exportToCsv = (filename: string, data: any[]) => {
     if (data.length === 0) {
@@ -58,4 +61,18 @@ export const exportToCsv = (filename: string, data: any[]) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+export const formatDurationFromMs = (ms: number): string => {
+    if (isNaN(ms) || ms < 0) {
+        return 'N/A';
+    }
+    const totalMinutes = Math.floor(ms / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
 };

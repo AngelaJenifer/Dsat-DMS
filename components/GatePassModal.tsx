@@ -61,7 +61,7 @@ const GatePassModal: React.FC<GatePassModalProps> = ({ vehicle, onClose }) => {
         <div className="flex justify-end space-x-4">
           <button
             onClick={onClose}
-            className="w-full bg-brand-accent text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-brand-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-all transform hover:scale-105"
+            className="w-full bg-primary-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-600 transition-all transform hover:scale-105"
           >
             Close
           </button>

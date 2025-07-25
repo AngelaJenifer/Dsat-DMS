@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Vehicle, Dock } from '../types.ts';
 import { 
     TruckIcon, 
     AppointmentsIcon, 
@@ -9,40 +10,42 @@ import {
     UserIcon,
     DocksIcon
 } from './icons/Icons.tsx';
+import CheckInOutLog from './CheckInOutLog.tsx';
 
 // Data for all available reports, tailored for a dock management system
 const ALL_REPORTS = [
-    // Appointments Summary
+    { id: 'vehicle_check_in_out', title: 'Check-In / Check-Out Log', description: 'Detailed logs of all vehicle check-ins and check-outs.', category: 'Vehicle Movement' },
     { id: 'appt_summary', title: 'Appointments Summary', description: 'Total appointments by day, week, or month.', category: 'Appointments Summary' },
     { id: 'appt_warehouse_breakdown', title: 'Warehouse Breakdown', description: 'Appointment breakdown by warehouse.', category: 'Appointments Summary' },
     { id: 'appt_op_type_breakdown', title: 'Operation Type Breakdown', description: 'Appointment breakdown by operation type (Inbound/Outbound).', category: 'Appointments Summary' },
     { id: 'appt_dock_usage_breakdown', title: 'Dock Usage Breakdown', description: 'Appointment breakdown by individual dock usage.', category: 'Appointments Summary' },
     
-    // Dock Utilization
     { id: 'dock_usage_idle', title: 'Dock Usage vs. Idle Time', description: 'Total usage time versus idle time per dock.', category: 'Dock Utilization' },
     { id: 'dock_peak_activity', title: 'Peak Dock Activity', description: 'Analysis of peak dock activity hours.', category: 'Dock Utilization' },
     { id: 'dock_vehicle_dwell', title: 'Vehicle Dwell Time', description: 'Average time spent per vehicle at the dock.', category: 'Dock Utilization' },
     
-    // Vehicle Movement
-    { id: 'vehicle_check_in_out', title: 'Check-In / Check-Out Log', description: 'Detailed logs of all vehicle check-ins and check-outs.', category: 'Vehicle Movement' },
     { id: 'vehicle_yard_transfers', title: 'Yard to Dock Transfers', description: 'Logs of all vehicle movements from the yard to a dock.', category: 'Vehicle Movement' },
     { id: 'vehicle_delay_reassignment', title: 'Delay & Reassignment Report', description: 'Analysis of delayed vehicles or dock reassignments.', category: 'Vehicle Movement' },
     
-    // Driver Performance & Carrier Insights
     { id: 'driver_on_time', title: 'On-Time Arrival Performance', description: 'Number and percentage of on-time arrivals by carrier.', category: 'Driver Performance & Carrier Insights' },
     { id: 'driver_repeat_delays', title: 'Repeat Delay Analysis', description: 'Identify repeat delays by driver or carrier.', category: 'Driver Performance & Carrier Insights' },
     { id: 'driver_behavior', title: 'Driver Behavior Report', description: 'Analysis of driver check-in and check-out behavior patterns.', category: 'Driver Performance & Carrier Insights' },
     
-    // Operation Trends
     { id: 'ops_volume_trends', title: 'Operation Volume Trends', description: 'Total Inbound, Outbound, and Transfer operations per week/month.', category: 'Operation Trends' },
     { id: 'ops_top_docks', title: 'Top Used Docks', description: 'Report on the most frequently used docks.', category: 'Operation Trends' },
     { id: 'ops_handled_goods', title: 'Handled Goods Analysis', description: 'Analysis of the most frequently handled goods types.', category: 'Operation Trends' },
 ];
 
+interface ReportsProps {
+    vehicles: Vehicle[];
+    docks: Dock[];
+}
 
-const Reports: React.FC = () => {
+
+const Reports: React.FC<ReportsProps> = ({ vehicles, docks }) => {
     const [selectedCategory, setSelectedCategory] = useState('All Reports');
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedReport, setSelectedReport] = useState<string | null>(null);
 
     const categories = useMemo(() => {
         const counts = ALL_REPORTS.reduce((acc, report) => {
@@ -74,6 +77,20 @@ const Reports: React.FC = () => {
             return categoryMatch && searchMatch;
         });
     }, [selectedCategory, searchTerm]);
+
+    if (selectedReport) {
+        if (selectedReport === 'vehicle_check_in_out') {
+            return <CheckInOutLog vehicles={vehicles} docks={docks} onBack={() => setSelectedReport(null)} />;
+        }
+        // Placeholder for other reports
+        return (
+            <div className="p-8">
+                <button onClick={() => setSelectedReport(null)} className="text-brand-accent font-semibold mb-4">&larr; Back to all reports</button>
+                <h1 className="text-2xl font-bold">{ALL_REPORTS.find(r => r.id === selectedReport)?.title}</h1>
+                <p>This report is not yet implemented.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 h-full flex flex-col bg-gray-50">
@@ -138,7 +155,7 @@ const Reports: React.FC = () => {
                                 </div>
                                 <div className="flex justify-between items-center mt-4">
                                     <span className="bg-gray-100 text-gray-600 text-xs font-semibold px-2.5 py-1 rounded-full">{report.category}</span>
-                                    <button className="text-sm font-semibold text-brand-accent border border-brand-accent/50 rounded-md px-4 py-1.5 hover:bg-indigo-50 transition-colors">
+                                    <button onClick={() => setSelectedReport(report.id)} className="text-sm font-semibold text-brand-accent border border-brand-accent/50 rounded-md px-4 py-1.5 hover:bg-indigo-50 transition-colors">
                                         View Report
                                     </button>
                                 </div>

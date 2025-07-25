@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Vendor } from '../types.ts';
+import { Customer, CustomerType } from '../types.ts';
 import { ICONS } from '../constants.tsx';
 
 interface VendorModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (vendor: Omit<Vendor, 'id'> & { id?: string }) => void;
-  vendor: Vendor | null;
+  onSave: (vendor: Omit<Customer, 'id'> & { id?: string }) => void;
+  vendor: Customer | null;
 }
 
 const VendorModal: React.FC<VendorModalProps> = ({ isOpen, onClose, onSave, vendor }) => {
-  const [formData, setFormData] = useState<Omit<Vendor, 'id' | 'totalAppointments' | 'lastAppointmentDate'>>({
+  const [formData, setFormData] = useState<Omit<Customer, 'id' | 'customerType' | 'totalAppointments' | 'lastAppointmentDate'>>({
     name: '',
     contactPerson: '',
     email: '',
@@ -48,7 +48,7 @@ const VendorModal: React.FC<VendorModalProps> = ({ isOpen, onClose, onSave, vend
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ ...formData, id: vendor?.id });
+    onSave({ ...formData, id: vendor?.id, customerType: CustomerType.Vendor });
     onClose();
   };
 
@@ -106,7 +106,7 @@ const VendorModal: React.FC<VendorModalProps> = ({ isOpen, onClose, onSave, vend
             </button>
             <button
               type="submit"
-              className="bg-brand-accent text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-brand-accent/90 focus:outline-none transition-transform transform hover:scale-105"
+              className="bg-primary-600 text-white font-bold py-2 px-6 rounded-lg shadow-lg hover:bg-primary-700 focus:outline-none transition-transform transform hover:scale-105"
             >
               {vendor ? 'Save Changes' : 'Add Vendor'}
             </button>

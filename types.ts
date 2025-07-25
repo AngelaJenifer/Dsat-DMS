@@ -6,7 +6,23 @@
 
 
 
+export enum CustomerType {
+    Vendor = 'Vendor',
+    Carrier = 'Carrier',
+}
 
+export interface Customer {
+  id: string;
+  name: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  address: string;
+  notes: string;
+  customerType: CustomerType;
+  totalAppointments?: number;
+  lastAppointmentDate?: string;
+}
 
 export enum WarehouseType {
     Fulfillment = 'Fulfillment',
@@ -28,22 +44,18 @@ export interface Warehouse {
   dockCount: number;
   isEnabled: boolean;
   zones?: string;
-  maxVehicleCapacity?: number;
 }
 
 export enum Page {
   Dashboard = 'Dashboard',
-  Appointments = 'Appointments',
-  Docks = 'Docks',
-  Vendors = 'Vendors',
-  Carriers = 'Carriers',
+  DockScheduler = 'Dock Scheduler',
+  Customers = 'Customers',
   GateManagement = 'Gate Management',
-  Documents = 'Documents',
   Operations = 'Operations',
   Reports = 'Reports',
   Settings = 'Settings',
   Help = 'Help & Support',
-  Configurations = 'Configurations',
+  DockManagement = 'Dock Management',
 }
 
 export enum DockStatus {
@@ -121,31 +133,6 @@ export interface Operation {
   delayReason?: string;
 }
 
-export interface Vendor {
-  id: string;
-  name: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  address: string;
-  notes: string;
-  totalAppointments?: number;
-  lastAppointmentDate?: string;
-}
-
-export interface Carrier {
-  id: string;
-  name: string;
-  contactPerson: string;
-  email: string;
-  phone: string;
-  address: string;
-  notes: string;
-  totalAppointments?: number;
-  lastAppointmentDate?: string;
-  activeTrucks?: number;
-}
-
 export enum DocumentType {
   BoL = 'BoL',
   Invoice = 'Invoice',
@@ -175,14 +162,14 @@ export interface Document {
   verificationNotes?: string;
 }
 
-
 export interface ExtractedDocumentInfo {
-    vehicleId: string;
-    carrier: string;
-    companyName: string;
+    vehicleId?: string;
+    carrier?: string;
+    companyName?: string;
     confidence: number;
     notes: string;
 }
+
 
 export enum Role {
   Admin = 'Admin',
@@ -193,10 +180,14 @@ export enum Role {
 
 export interface User {
   id: string;
-  name: string;
+  name: string; // Full Name
   email: string;
+  username?: string;
   role: Role;
   avatarUrl: string;
+  assignedWarehouses: string[];
+  status: 'Active' | 'Inactive';
+  remarks?: string;
 }
 
 export interface AppSettings {
@@ -282,6 +273,7 @@ export interface TimelineAppointment {
     vehicleRequirements?: {
       isRefrigerated?: boolean;
     };
+    actualCompletionTime?: Date;
 }
 
 // For new Reports page
@@ -330,3 +322,26 @@ export interface ActivityLog {
     timestamp: number;
     type: ActivityLogType;
 }
+
+// For Role Management
+export type AccessLevel = 'Full' | 'Some' | 'None';
+
+export interface PermissionsState {
+  [module: string]: {
+    accessLevel: AccessLevel;
+    granular: {
+      [key: string]: boolean;
+    };
+  };
+}
+
+// For Time Slot Configuration
+export type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+
+export interface TimeSlot {
+    id: number;
+    from: string;
+    to: string;
+}
+
+export type TimeSlotsData = Record<DayOfWeek, TimeSlot[]>;

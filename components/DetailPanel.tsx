@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Vehicle, Dock, Operation, Vendor, Document, OperationStatus, DockStatus, VehicleStatus, OperationType, TimelineAppointment } from '../types.ts';
+import { Vehicle, Dock, Operation, Customer, Document, OperationStatus, DockStatus, VehicleStatus, OperationType, TimelineAppointment } from '../types.ts';
 import { ICONS } from '../constants.tsx';
+import { formatDate } from '../utils.ts';
 
 // Helper components for the panel
 const DetailSection: React.FC<{ title: string; children: React.ReactNode; }> = ({ title, children }) => (
@@ -42,14 +43,16 @@ interface DetailPanelProps {
     item: Vehicle | Dock | null;
     vehicles: Vehicle[];
     operations: Operation[];
-    vendors: Vendor[];
+    vendors: Customer[];
     documents: Document[];
+    docks: Dock[];
     timelineAppointments: TimelineAppointment[];
     onClose: () => void;
     onCheckOut: (vehicleId: string) => void;
     onReportDelay: (operationId: string, reason: string) => void;
     onStartOperation: (vehicleId: string, type: OperationType, duration: number) => void;
     onBookAppointment: (dockId: string) => void;
+    currentDate: Date;
 }
 
 const DetailPanel: React.FC<DetailPanelProps> = ({ 
@@ -58,12 +61,14 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
     operations, 
     vendors, 
     documents,
+    docks,
     timelineAppointments,
     onClose,
     onCheckOut,
     onReportDelay,
     onStartOperation,
-    onBookAppointment
+    onBookAppointment,
+    currentDate
 }) => {
     const isOpen = item !== null;
     
@@ -107,64 +112,102 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
             .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
     }, [dockToShow, timelineAppointments]);
 
-    const renderVehicleContent = (vehicle: Vehicle) => (
-        <>
-            <div className="p-6 text-center border-b border-gray-200">
-                <h2 className="text-xl font-bold text-gray-800">{vehicle.id}</h2>
-                <p className="text-gray-500">{vehicle.carrier}</p>
-                <div className="mt-4">{getVehicleStatusBadge(vehicle.status)}</div>
-            </div>
-            <div className="flex-grow p-6 overflow-y-auto">
-                <DetailSection title="Appointment Info">
-                    <DetailRow label="Appointment Time" value={vehicle.appointmentTime} />
-                    <DetailRow label="Assigned Dock" value={vehicle.assignedDockId} />
-                    <DetailRow label="Entry Time" value={vehicle.entryTime ? new Date(vehicle.entryTime).toLocaleTimeString() : 'N/A'} />
-                    <DetailRow label="Exit Time" value={vehicle.exitTime ? new Date(vehicle.exitTime).toLocaleTimeString() : 'N/A'} />
-                </DetailSection>
-                <DetailSection title="Driver & Vendor">
-                    <DetailRow label="Driver" value={vehicle.driverName} />
-                    <DetailRow label="Vendor" value={vendorForVehicle?.name || 'N/A'} />
-                </DetailSection>
-                {relevantOperation && (
-                    <DetailSection title="Active Operation">
-                        <DetailRow label="Type" value={relevantOperation.type} />
-                        <DetailRow label="Status" value={relevantOperation.status} />
-                        <DetailRow label="Start Time" value={new Date(relevantOperation.startTime).toLocaleTimeString()} />
-                        <DetailRow label="Est. Completion" value={new Date(relevantOperation.estCompletionTime).toLocaleTimeString()} />
-                        {relevantOperation.delayReason && <DetailRow label="Delay Reason" value={<span className="text-red-600 break-all">{relevantOperation.delayReason}</span>} />}
+    const renderVehicleContent = (vehicle: Vehicle) => {
+        const dockName = docks.find(d => d.id === vehicle.assignedDockId)?.name || vehicle.assignedDockId;
+        return (
+            <>
+                <div className="p-6 text-center border-b border-gray-200">
+                    <h2 className="text-xl font-bold text-gray-800">{vehicle.id}</h2>
+                    <p className="text-gray-500">{vehicle.carrier}</p>
+                    <div className="mt-4">{getVehicleStatusBadge(vehicle.status)}</div>
+                </div>
+                <div className="flex-grow p-6 overflow-y-auto">
+                    <DetailSection title="Appointment Info">
+                        <DetailRow label="Appointment Time" value={vehicle.appointmentTime} />
+                        <DetailRow label="Assigned Dock" value={dockName} />
+                        <DetailRow label="Entry Time" value={vehicle.entryTime ? new Date(vehicle.entryTime).toLocaleTimeString() : 'N/A'} />
+                        <DetailRow label="Exit Time" value={vehicle.exitTime ? new Date(vehicle.exitTime).toLocaleTimeString() : 'N/A'} />
                     </DetailSection>
-                )}
-                {relevantDocuments.length > 0 && (
-                    <DetailSection title="Documents">
-                        {relevantDocuments.map(doc => (
-                            <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md mb-2">
-                                <span className="text-sm text-gray-700 truncate pr-2">{doc.name}</span>
-                                <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-brand-accent hover:text-brand-accent/80 flex-shrink-0">{ICONS.download}</a>
-                            </div>
-                        ))}
+                    <DetailSection title="Driver & Vendor">
+                        <DetailRow label="Driver" value={vehicle.driverName} />
+                        <DetailRow label="Vendor" value={vendorForVehicle?.name || 'N/A'} />
                     </DetailSection>
-                )}
-            </div>
-            <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 justify-center">
-                 {vehicle.status === VehicleStatus.Entered && !relevantOperation && (
-                    <button onClick={() => onStartOperation(vehicle.id, OperationType.Unloading, 60)} className="flex-1 bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-600">Start Operation</button>
-                )}
-                {relevantOperation && relevantOperation.status === OperationStatus.InProgress && (
-                    <button onClick={() => onReportDelay(relevantOperation.id, 'Manual delay report from panel.')} className="flex-1 bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-yellow-600">Report Delay</button>
-                )}
-                {vehicle.status === VehicleStatus.Entered && (
-                    <button onClick={() => onCheckOut(vehicle.id)} className="flex-1 bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-red-600">Check Out</button>
-                )}
-            </div>
-        </>
-    );
+                    {relevantOperation && (
+                        <DetailSection title="Active Operation">
+                            <DetailRow label="Type" value={relevantOperation.type} />
+                            <DetailRow label="Status" value={relevantOperation.status} />
+                            <DetailRow label="Start Time" value={new Date(relevantOperation.startTime).toLocaleTimeString()} />
+                            <DetailRow label="Est. Completion" value={new Date(relevantOperation.estCompletionTime).toLocaleTimeString()} />
+                            {relevantOperation.delayReason && <DetailRow label="Delay Reason" value={<span className="text-red-600 break-all">{relevantOperation.delayReason}</span>} />}
+                        </DetailSection>
+                    )}
+                    {relevantDocuments.length > 0 && (
+                        <DetailSection title="Documents">
+                            {relevantDocuments.map(doc => (
+                                <div key={doc.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md mb-2">
+                                    <span className="text-sm text-gray-700 truncate pr-2">{doc.name}</span>
+                                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-brand-accent hover:text-brand-accent/80 flex-shrink-0">{ICONS.download}</a>
+                                </div>
+                            ))}
+                        </DetailSection>
+                    )}
+                </div>
+                <div className="p-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 justify-center">
+                     {vehicle.status === VehicleStatus.Entered && !relevantOperation && (
+                        <button onClick={() => onStartOperation(vehicle.id, OperationType.Unloading, 60)} className="flex-1 bg-blue-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-600">Start Operation</button>
+                    )}
+                    {relevantOperation && relevantOperation.status === OperationStatus.InProgress && (
+                        <button onClick={() => onReportDelay(relevantOperation.id, 'Manual delay report from panel.')} className="flex-1 bg-yellow-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-yellow-600">Report Delay</button>
+                    )}
+                    {vehicle.status === VehicleStatus.Entered && (
+                        <button onClick={() => onCheckOut(vehicle.id)} className="flex-1 bg-red-500 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-red-600">Check Out</button>
+                    )}
+                </div>
+            </>
+        );
+    }
     
-    const renderDockContent = (dock: Dock) => (
+    const renderDockContent = (dock: Dock) => {
+        let displayStatus: DockStatus;
+        const isToday = formatDate(currentDate) === formatDate(new Date());
+
+        if (dock.status === DockStatus.Maintenance) {
+            displayStatus = DockStatus.Maintenance;
+        } else {
+            const appointmentsForDockOnDay = timelineAppointments.filter(appt =>
+                appt.dockId === dock.id &&
+                formatDate(new Date(appt.startTime)) === formatDate(currentDate)
+            );
+
+            if (isToday) {
+                const now = new Date();
+                const hasAppointmentInProgress = appointmentsForDockOnDay.some(appt =>
+                    new Date(appt.startTime) <= now &&
+                    new Date(appt.endTime) > now &&
+                    (appt.status === 'Approved' || appt.status === 'Draft')
+                );
+
+                if (dock.status === DockStatus.Occupied || hasAppointmentInProgress || appointmentsForDockOnDay.length > 0) {
+                    displayStatus = DockStatus.Occupied;
+                } else {
+                    displayStatus = DockStatus.Available;
+                }
+            } else {
+                 // For future or past dates, only consider scheduled appointments
+                if (appointmentsForDockOnDay.length > 0) {
+                    displayStatus = DockStatus.Occupied;
+                } else {
+                    displayStatus = DockStatus.Available;
+                }
+            }
+        }
+        
+        return (
         <>
             <div className="p-6 text-center border-b border-gray-200">
                 <h2 className="text-xl font-bold text-gray-800">{dock.name}</h2>
                 <p className="text-gray-500">{dock.location}</p>
-                <div className="mt-4">{getDockStatusBadge(dock.status)}</div>
+                <div className="mt-4">{getDockStatusBadge(displayStatus)}</div>
             </div>
             <div className="flex-grow p-6 overflow-y-auto">
                 <DetailSection title="Dock Info">
@@ -191,7 +234,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                 ) : (
                     <>
                         <div className="text-center py-4 text-gray-500">
-                            <p>This dock is currently {dock.status}.</p>
+                            <p>Physical dock status is {dock.status}.</p>
                         </div>
                         {dock.status === DockStatus.Available && upcomingAppointmentForDock && (
                             <DetailSection title="Next Appointment">
@@ -215,7 +258,7 @@ const DetailPanel: React.FC<DetailPanelProps> = ({
                 )}
             </div>
         </>
-    );
+    )};
 
     return (
         <>

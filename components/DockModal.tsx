@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dock, DockStatus, DockType, Warehouse } from '../types.ts';
 import { BuildingOfficeIcon, ClockIcon, XCircleIcon, TrashIcon, ChevronDownIcon, TruckIcon } from './icons/Icons.tsx';
 
@@ -49,12 +49,16 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
 
     useEffect(() => {
         if (isOpen) {
-            const initialData: Partial<Dock> = dock ? 
-                { ...dock } : 
+            const initialWarehouseId = dock?.warehouseId || currentWarehouseId;
+            const selectedWarehouse = warehouses.find(wh => wh.id === initialWarehouseId);
+            const baysForWarehouse = selectedWarehouse?.zones?.split(',').map(z => z.trim()).filter(Boolean) || [];
+
+            const initialData: Partial<Dock> = dock ?
+                { ...dock } :
                 {
                     name: '',
-                    warehouseId: currentWarehouseId,
-                    location: '',
+                    warehouseId: initialWarehouseId,
+                    location: baysForWarehouse[0] || '', // Default to first bay
                     dockType: DockType.Both,
                     status: DockStatus.Available,
                     operationalHours: { start: '08:00', end: '17:00' },
@@ -63,9 +67,23 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
                     dimensions: '',
                     safetyComplianceTags: [],
                 };
+            
+            // If editing, ensure the saved location is valid for its warehouse. If not, default.
+            if (dock && !baysForWarehouse.includes(dock.location)) {
+                initialData.location = baysForWarehouse[0] || '';
+            }
+
             setFormData(initialData);
         }
-    }, [isOpen, dock, currentWarehouseId]);
+    }, [isOpen, dock, currentWarehouseId, warehouses]);
+
+    const availableBays = useMemo(() => {
+        const selectedWarehouse = warehouses.find(wh => wh.id === formData.warehouseId);
+        if (selectedWarehouse && selectedWarehouse.zones) {
+            return selectedWarehouse.zones.split(',').map(z => z.trim()).filter(Boolean);
+        }
+        return [];
+    }, [formData.warehouseId, warehouses]);
 
     const handleFormChange = (field: keyof Dock, value: any) => {
         setFormData(p => ({ ...p, [field]: value }));
@@ -75,13 +93,24 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
         const newHours = { ...formData.operationalHours, [part]: value };
         handleFormChange('operationalHours', newHours);
     };
+    
+    const handleRefrigeratedChange = (isChecked: boolean) => {
+        const currentTags = formData.safetyComplianceTags || [];
+        let newTags: string[];
+        if (isChecked) {
+            newTags = [...new Set([...currentTags, 'Cold Storage'])];
+        } else {
+            newTags = currentTags.filter(tag => tag !== 'Cold Storage');
+        }
+        handleFormChange('safetyComplianceTags', newTags);
+    };
 
     const handleArrayStringChange = (field: 'compatibleVehicleTypes' | 'safetyComplianceTags', value: string) => {
         handleFormChange(field, value.split(',').map(s => s.trim()).filter(Boolean));
     };
 
     const handleSave = () => {
-        if (!formData.name || !formData.warehouseId || !formData.dockType) {
+        if (!formData.name || !formData.warehouseId || !formData.dockType || !formData.location) {
             alert('Please fill all mandatory fields.');
             return;
         }
@@ -93,6 +122,14 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
             onDelete(dock.id!);
             onClose();
         }
+    };
+    
+    const handleWarehouseChange = (newWarehouseId: string) => {
+        const selectedWarehouse = warehouses.find(wh => wh.id === newWarehouseId);
+        const newBays = selectedWarehouse?.zones?.split(',').map(z => z.trim()).filter(Boolean) || [];
+        
+        handleFormChange('warehouseId', newWarehouseId);
+        handleFormChange('location', newBays[0] || '');
     };
 
     return (
@@ -112,10 +149,16 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
 
                     <div className="flex-grow p-5 space-y-4 overflow-y-auto bg-gray-50/50">
                         <FormSection title="Dock Identity" icon={<TruckIcon />} defaultOpen>
-                            <FormField label="Dock ID / Name" isMandatory><input type="text" value={formData.name || ''} onChange={e => handleFormChange('name', e.target.value)} className={baseInputClasses} /></FormField>
+                            <FormField label="Dock ID / Name" isMandatory className="md:col-span-2"><input type="text" value={formData.name || ''} onChange={e => handleFormChange('name', e.target.value)} className={baseInputClasses} /></FormField>
                             <FormField label="Warehouse Location" isMandatory>
-                                <select value={formData.warehouseId} onChange={e => handleFormChange('warehouseId', e.target.value)} className={baseInputClasses} disabled={!isCreating}>
+                                <select value={formData.warehouseId} onChange={e => handleWarehouseChange(e.target.value)} className={baseInputClasses} disabled={!isCreating}>
                                     {warehouses.map(wh => <option key={wh.id} value={wh.id}>{wh.name}</option>)}
+                                </select>
+                            </FormField>
+                            <FormField label="Select Bay" isMandatory>
+                                <select value={formData.location || ''} onChange={e => handleFormChange('location', e.target.value)} className={baseInputClasses} disabled={availableBays.length === 0}>
+                                    {availableBays.map(bay => <option key={bay} value={bay}>{bay}</option>)}
+                                    {availableBays.length === 0 && <option value="" disabled>No bays in warehouse</option>}
                                 </select>
                             </FormField>
                             <FormField label="Dock Type" isMandatory>
@@ -128,6 +171,29 @@ const DockModal: React.FC<DockModalProps> = ({ isOpen, onClose, onSave, onDelete
                                     {Object.values(DockStatus).map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
                                 </select>
                             </FormField>
+                             <div className="md:col-span-2 mt-2 pt-4 border-t border-gray-200">
+                                <div className="relative flex items-start">
+                                    <div className="flex h-5 items-center">
+                                        <input
+                                            id="isRefrigerated"
+                                            aria-describedby="isRefrigerated-description"
+                                            name="isRefrigerated"
+                                            type="checkbox"
+                                            checked={formData.safetyComplianceTags?.includes('Cold Storage') || false}
+                                            onChange={e => handleRefrigeratedChange(e.target.checked)}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm">
+                                        <label htmlFor="isRefrigerated" className="font-medium text-gray-700">
+                                            Is Refrigerated
+                                        </label>
+                                        <p id="isRefrigerated-description" className="text-gray-500">
+                                            Check this if the dock has temperature control (cold storage enabled)
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </FormSection>
                         
                         <FormSection title="Operational Details" icon={<ClockIcon />} defaultOpen>

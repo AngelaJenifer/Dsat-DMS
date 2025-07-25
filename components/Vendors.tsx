@@ -1,21 +1,21 @@
 import React, { useState, useMemo } from 'react';
-import { Vendor, Vehicle, VehicleStatus } from '../types.ts';
+import { Customer, Vehicle, VehicleStatus } from '../types.ts';
 import { ICONS } from '../constants.tsx';
 import VendorModal from './VendorModal.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 
 interface VendorsProps {
-  vendors: Vendor[];
+  vendors: Customer[];
   vehicles: Vehicle[];
-  onSave: (vendor: Omit<Vendor, 'id'> & { id?: string }) => void;
+  onSave: (vendor: Omit<Customer, 'id'> & { id?: string }) => void;
   onDelete: (vendorId: string) => void;
 }
 
 const Vendors: React.FC<VendorsProps> = ({ vendors, vehicles, onSave, onDelete }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [vendorToEdit, setVendorToEdit] = useState<Vendor | null>(null);
-    const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
+    const [vendorToEdit, setVendorToEdit] = useState<Customer | null>(null);
+    const [vendorToDelete, setVendorToDelete] = useState<Customer | null>(null);
 
 
     const filteredVendors = useMemo(() => {
@@ -29,7 +29,7 @@ const Vendors: React.FC<VendorsProps> = ({ vendors, vehicles, onSave, onDelete }
         );
     }, [vendors, searchQuery]);
 
-    const handleOpenModal = (vendor: Vendor | null = null) => {
+    const handleOpenModal = (vendor: Customer | null = null) => {
         setVendorToEdit(vendor);
         setIsModalOpen(true);
     };

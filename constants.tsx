@@ -1,21 +1,12 @@
-
-
-
-
-
-
-
 import React from 'react';
-import { Dock, Vehicle, DockStatus, VehicleStatus, Operation, OperationType, OperationStatus, Carrier, Vendor, Document, DocumentType, DocumentStatus, Role, User, AppSettings, TimelineDock, TimelineAppointment, TimelineAppointmentStatus, ActivityLog, ActivityLogType, Warehouse, WarehouseType, DockType } from './types.ts';
+import { Dock, Vehicle, DockStatus, VehicleStatus, Operation, OperationType, OperationStatus, Customer, CustomerType, Document, DocumentType, DocumentStatus, Role, User, AppSettings, TimelineDock, TimelineAppointment, TimelineAppointmentStatus, ActivityLog, ActivityLogType, Warehouse, WarehouseType, DockType, DayOfWeek, TimeSlot } from './types.ts';
 import {
     ChartBarIcon,
     AppointmentsIcon,
     LogInIcon,
     PlayCircleIcon,
     DocksIcon,
-    CarriersIcon,
     BuildingOfficeIcon,
-    DocumentsIcon,
     SettingsIcon,
     InformationCircleIcon,
     ChevronDoubleLeftIcon,
@@ -25,26 +16,23 @@ import {
     AlertTriangleIcon,
     PencilIcon,
     TrashIcon,
-    ArrowUpTrayIcon,
     ArrowDownTrayIcon,
-    ViewfinderCircleIcon,
     SnowflakeIcon,
     ViewColumnsIcon,
-    ListBulletIcon,
     TruckIcon,
+    CarriersIcon,
+    KeyIcon,
 } from './components/icons/Icons.tsx';
 
 export const ICONS = {
   dashboard: <ChartBarIcon className="w-6 h-6" />,
   appointments: <AppointmentsIcon className="w-6 h-6" />,
   gate: <LogInIcon className="w-6 h-6" />,
-  operations: <PlayCircleIcon className="w-6 h-6" />,
+  operations: <PlayCircleIcon className="w-5 h-5" />,
   docks: <DocksIcon className="w-6 h-6" />,
-  viewfinder: <ViewfinderCircleIcon className="w-6 h-6" />,
   truck: <TruckIcon className="w-5 h-5" />,
-  carriers: <CarriersIcon className="w-6 h-6" />,
-  vendors: <BuildingOfficeIcon className="w-6 h-6" />,
-  documents: <DocumentsIcon className="w-6 h-6" />,
+  customers: <BuildingOfficeIcon className="w-6 h-6" />,
+  carriers: <CarriersIcon className="w-5 h-5" />,
   reports: <ChartBarIcon className="w-6 h-6" />,
   settings: <SettingsIcon className="w-6 h-6" />,
   help: <InformationCircleIcon className="w-6 h-6" />,
@@ -57,11 +45,10 @@ export const ICONS = {
   info: <InformationCircleIcon className="w-5 h-5" />,
   edit: <PencilIcon className="w-5 h-5" />,
   delete: <TrashIcon className="w-5 h-5" />,
-  upload: <ArrowUpTrayIcon className="w-5 h-5" />,
   download: <ArrowDownTrayIcon className="w-5 h-5" />,
   snowflake: <SnowflakeIcon className="w-5 h-5" />,
   toggleCalendar: <ViewColumnsIcon className="w-5 h-5" />,
-  listView: <ListBulletIcon className="w-5 h-5" />,
+  key: <KeyIcon className="w-5 h-5 text-gray-400" />,
 };
 
 
@@ -80,8 +67,7 @@ export const WAREHOUSES_DATA: Warehouse[] = [
         contactInfo: 'j.metro@metro-logistics.com',
         dockCount: 20,
         isEnabled: true,
-        zones: 'Receiving, Picking, Packing, Shipping',
-        maxVehicleCapacity: 50,
+        zones: 'Bay A, Bay B',
     },
     { 
         id: 'W02', 
@@ -94,8 +80,7 @@ export const WAREHOUSES_DATA: Warehouse[] = [
         contactInfo: '555-0102',
         dockCount: 20,
         isEnabled: true,
-        zones: 'North Zone, South Zone, Cold Storage Zone',
-        maxVehicleCapacity: 75,
+        zones: 'Bay C, Bay D',
     },
     { 
         id: 'W03', 
@@ -108,46 +93,56 @@ export const WAREHOUSES_DATA: Warehouse[] = [
         contactInfo: 's.central@cwcomplex.com',
         dockCount: 10,
         isEnabled: false,
-        zones: 'Inbound Section, Outbound Section',
-        maxVehicleCapacity: 30,
+        zones: 'Bay E',
     },
 ];
 
 export const DOCKS_DEFINITION: Omit<Dock, 'id'>[] = (() => {
     const docks: Omit<Dock, 'id'>[] = [];
-    const locations = ['Bay A', 'Bay B', 'Bay C', 'Bay D', 'Bay E'];
-    const refrigeratedDocks = [5, 8, 17, 26, 34, 42];
-
+    
     for (let i = 1; i <= 50; i++) {
-        const dockName = `D${i.toString().padStart(2, '0')}`;
-        const isRefrigerated = refrigeratedDocks.includes(i);
-        const location = isRefrigerated ? 'Refrigerated Bay (F)' : locations[Math.floor((i - 1) / 10)];
+        let warehouseId: string;
+        let location: string; // This is the Bay
+        let isRefrigerated = false;
+
+        if (i <= 10) { // W01, Bay A
+            warehouseId = 'W01';
+            location = 'Bay A';
+        } else if (i <= 20) { // W01, Bay B
+            warehouseId = 'W01';
+            location = 'Bay B';
+        } else if (i <= 30) { // W02, Bay C (Refrigerated)
+            warehouseId = 'W02';
+            location = 'Bay C';
+            isRefrigerated = true;
+        } else if (i <= 40) { // W02, Bay D
+            warehouseId = 'W02';
+            location = 'Bay D';
+        } else { // W03, Bay E
+            warehouseId = 'W03';
+            location = 'Bay E';
+        }
+
+        const dockIdPart = `D${i.toString().padStart(2, '0')}`;
+        const dockName = `${location} - ${dockIdPart}`;
         let status = DockStatus.Available;
         let notes: string | undefined = undefined;
         let maintenanceType: 'manual' | 'ai' | undefined = undefined;
 
-        if ([2, 18, 25, 33, 41, 22, 35].includes(i) && !isRefrigerated) {
+        // Same random occupied/maintenance logic as before
+        if ([2, 18, 25, 33, 41, 22, 35].includes(i)) {
             status = DockStatus.Occupied;
             notes = 'Vehicle present.';
         }
-        if ([4, 14, 30, 48].includes(i) && !isRefrigerated) {
+        if ([4, 14, 30, 48].includes(i)) {
             status = DockStatus.Maintenance;
             notes = 'Scheduled maintenance.';
             maintenanceType = 'manual';
         }
 
         let operationsSinceMaintenance = Math.floor(Math.random() * 40);
-        if ([3, 11, 28].includes(i) && !isRefrigerated) {
+        if ([3, 11, 28].includes(i)) {
             operationsSinceMaintenance = 55 + Math.floor(Math.random() * 10);
-        }
-
-        let warehouseId: string;
-        if (i <= 20) {
-            warehouseId = 'W01';
-        } else if (i <= 40) {
-            warehouseId = 'W02';
-        } else {
-            warehouseId = 'W03';
         }
 
         const safetyTags: string[] = [];
@@ -176,7 +171,8 @@ export const DOCKS_DEFINITION: Omit<Dock, 'id'>[] = (() => {
 
 export const DOCKS_DATA: Dock[] = DOCKS_DEFINITION.map((dock, index) => ({ ...dock, id: `D${(index + 1).toString().padStart(2, '0')}` }));
 
-export const VENDORS_DATA: Vendor[] = [
+export const CUSTOMERS_DATA: Customer[] = [
+  // Vendors
   {
     id: 'V01',
     name: 'Global Parts Inc.',
@@ -185,6 +181,7 @@ export const VENDORS_DATA: Vendor[] = [
     phone: '(555) 987-6543',
     address: '101 Industrial Park, Detroit, MI 48226',
     notes: 'Primary supplier for automotive components.',
+    customerType: CustomerType.Vendor,
   },
   {
     id: 'V02',
@@ -194,6 +191,7 @@ export const VENDORS_DATA: Vendor[] = [
     phone: '(555) 876-5432',
     address: '202 Farm Lane, Salinas, CA 93901',
     notes: 'Temperature-sensitive goods. Requires refrigerated docks.',
+    customerType: CustomerType.Vendor,
   },
   {
     id: 'V03',
@@ -203,30 +201,31 @@ export const VENDORS_DATA: Vendor[] = [
     phone: '(555) 765-4321',
     address: '303 Construction Ave, Dallas, TX 75201',
     notes: 'Supplier of oversized construction materials.',
+    customerType: CustomerType.Vendor,
   },
-   { id: 'V04', name: 'Tuduu Logistics', contactPerson: 'Contact', email: 'contact@tuduu.com', phone: '555-222-0000', address: '123 Main St', notes: ''},
-   { id: 'V05', name: 'Wave Carriers', contactPerson: 'Contact', email: 'contact@wave.com', phone: '555-333-0000', address: '123 Main St', notes: ''},
-   { id: 'V06', name: 'Finsy Logistics', contactPerson: 'Contact', email: 'contact@finsy.com', phone: '555-444-0000', address: '123 Main St', notes: ''},
-   { id: 'V07', name: 'Prilans Shipping', contactPerson: 'Contact', email: 'contact@prilans.com', phone: '555-555-0000', address: '123 Main St', notes: ''},
-   { id: 'V08', name: 'PharmaCorp', contactPerson: 'Contact', email: 'contact@pharma.com', phone: '555-666-0000', address: '123 Main St', notes: ''},
+  { id: 'V04', name: 'Tuduu Logistics', contactPerson: 'Contact', email: 'contact@tuduu.com', phone: '555-222-0000', address: '123 Main St', notes: '', customerType: CustomerType.Vendor },
+  { id: 'V05', name: 'Wave Carriers', contactPerson: 'Contact', email: 'contact@wave.com', phone: '555-333-0000', address: '123 Main St', notes: '', customerType: CustomerType.Vendor },
+  { id: 'V06', name: 'Finsy Logistics', contactPerson: 'Contact', email: 'contact@finsy.com', phone: '555-444-0000', address: '123 Main St', notes: '', customerType: CustomerType.Vendor },
+  { id: 'V07', name: 'Prilans Shipping', contactPerson: 'Contact', email: 'contact@prilans.com', phone: '555-555-0000', address: '123 Main St', notes: '', customerType: CustomerType.Vendor },
+  { id: 'V08', name: 'PharmaCorp', contactPerson: 'Contact', email: 'contact@pharma.com', phone: '555-666-0000', address: '123 Main St', notes: '', customerType: CustomerType.Vendor },
+  // Carriers
+  { id: 'C01', name: 'QuickHaul', contactPerson: 'Jane Smith', email: 'jane.s@quickhaul.com', phone: '555-1234', address: '123 Freight Rd, Metropolis', notes: 'Primary carrier for dry goods.', customerType: CustomerType.Carrier },
+  { id: 'C02', name: 'ColdCargo', contactPerson: 'Bob Johnson', email: 'bob.j@coldcargo.com', phone: '555-5678', address: '456 Reefer Ave, Coast City', notes: 'Specializes in refrigerated transport.', customerType: CustomerType.Carrier },
+  { id: 'C03', name: 'HeavyLoad Movers', contactPerson: 'Carlos Ray', email: 'c.ray@heavyload.com', phone: '555-8765', address: '789 Industrial Blvd, Central City', notes: 'Handles oversized loads.', customerType: CustomerType.Carrier },
+  { id: 'C04', name: 'BioTrans', contactPerson: 'Dr. Evelyn Reed', email: 'e.reed@biotrans.com', phone: '555-4321', address: '101 Pharma Ln, Metropolis', notes: 'Certified for medical and pharmaceutical transport.', customerType: CustomerType.Carrier },
+  { id: 'C05', name: 'Wave Carriers', contactPerson: 'Contact', email: 'contact@wave.com', phone: '555-333-0000', address: '123 Main St', notes: '', customerType: CustomerType.Carrier },
+  { id: 'C06', name: 'Finsy Logistics', contactPerson: 'Contact', email: 'contact@finsy.com', phone: '555-444-0000', address: '123 Main St', notes: '', customerType: CustomerType.Carrier },
+  { id: 'C07', name: 'Prilans Shipping', contactPerson: 'Contact', email: 'contact@prilans.com', phone: '555-555-0000', address: '123 Main St', notes: '', customerType: CustomerType.Carrier },
 ];
 
-export const CARRIERS_DATA: Carrier[] = [
-  { id: 'C01', name: 'QuickHaul', contactPerson: 'Jane Smith', email: 'jane.s@quickhaul.com', phone: '555-1234', address: '123 Freight Rd, Metropolis', notes: 'Primary carrier for dry goods.' },
-  { id: 'C02', name: 'ColdCargo', contactPerson: 'Bob Johnson', email: 'bob.j@coldcargo.com', phone: '555-5678', address: '456 Reefer Ave, Coast City', notes: 'Specializes in refrigerated transport.' },
-  { id: 'C03', name: 'HeavyLoad Movers', contactPerson: 'Carlos Ray', email: 'c.ray@heavyload.com', phone: '555-8765', address: '789 Industrial Blvd, Central City', notes: 'Handles oversized loads.' },
-  { id: 'C04', name: 'BioTrans', contactPerson: 'Dr. Evelyn Reed', email: 'e.reed@biotrans.com', phone: '555-4321', address: '101 Pharma Ln, Metropolis', notes: 'Certified for medical and pharmaceutical transport.' },
-  { id: 'C05', name: 'Wave Carriers', contactPerson: 'Contact', email: 'contact@wave.com', phone: '555-333-0000', address: '123 Main St', notes: '' },
-  { id: 'C06', name: 'Finsy Logistics', contactPerson: 'Contact', email: 'contact@finsy.com', phone: '555-444-0000', address: '123 Main St', notes: '' },
-  { id: 'C07', name: 'Prilans Shipping', contactPerson: 'Contact', email: 'contact@prilans.com', phone: '555-555-0000', address: '123 Main St', notes: '' },
-];
 
 const generateAppointments = (): TimelineAppointment[] => {
     const allAppointments: TimelineAppointment[] = [];
     const baseDate = new Date();
     const docks = DOCKS_DATA;
-    const carriers = CARRIERS_DATA;
-    const vendors = VENDORS_DATA;
+    const customers = CUSTOMERS_DATA;
+    const carriers = customers.filter(c => c.customerType === CustomerType.Carrier);
+    const vendors = customers.filter(c => c.customerType === CustomerType.Vendor);
 
     // Operational hours approx 8 AM to 8 PM (20:00)
     const START_HOUR = 8;
@@ -323,6 +322,31 @@ const generateAppointments = (): TimelineAppointment[] => {
 
 export const TIMELINE_APPOINTMENTS_DATA: TimelineAppointment[] = generateAppointments();
 
+export const TIME_SLOTS_DATA: Record<DayOfWeek, TimeSlot[]> = {
+    MONDAY: [
+        { id: 1, from: '06:00', to: '10:00' },
+        { id: 2, from: '11:00', to: '16:00' },
+    ],
+    TUESDAY: [
+        { id: 1, from: '06:00', to: '10:00' },
+        { id: 2, from: '11:00', to: '16:00' },
+    ],
+    WEDNESDAY: [
+        { id: 1, from: '06:00', to: '10:00' },
+        { id: 2, from: '11:00', to: '16:00' },
+    ],
+    THURSDAY: [
+        { id: 1, from: '06:00', to: '10:00' },
+        { id: 2, from: '11:00', to: '16:00' },
+    ],
+    FRIDAY: [
+        { id: 1, from: '06:00', to: '10:00' },
+        { id: 2, from: '11:00', to: '16:00' },
+    ],
+    SATURDAY: [],
+    SUNDAY: [],
+};
+
 export const VEHICLES_DATA: Vehicle[] = [
     // From appointments
     { id: 'TRK-001', driverName: 'John Smith', carrier: 'QuickHaul', vendorId: 'V01', appointmentTime: '09:00AM', assignedDockId: 'D02', status: VehicleStatus.Entered, entryTime: now - minutes(15) },
@@ -417,10 +441,10 @@ export const DOCUMENTS_DATA: Document[] = [
 
 
 export const USERS_DATA: User[] = [
-  { id: 'U01', name: 'John Doe', email: 'john.doe@abclogistics.com', role: Role.GateKeeper, avatarUrl: 'https://picsum.photos/seed/user1/40/40' },
-  { id: 'U02', name: 'Jane Smith', email: 'jane.smith@abclogistics.com', role: Role.Manager, avatarUrl: 'https://picsum.photos/seed/user2/40/40' },
-  { id: 'U03', name: 'Admin User', email: 'admin@abclogistics.com', role: Role.Admin, avatarUrl: 'https://picsum.photos/seed/user3/40/40' },
-  { id: 'U04', name: 'Mike Ross', email: 'mike.ross@abclogistics.com', role: Role.DockOperator, avatarUrl: 'https://picsum.photos/seed/user4/40/40' },
+  { id: 'U01', name: 'John Doe', email: 'john.doe@abclogistics.com', role: Role.GateKeeper, avatarUrl: 'https://picsum.photos/seed/user1/40/40', assignedWarehouses: ['W01'], status: 'Active' },
+  { id: 'U02', name: 'Jane Smith', email: 'jane.smith@abclogistics.com', role: Role.Manager, avatarUrl: 'https://picsum.photos/seed/user2/40/40', assignedWarehouses: ['W01', 'W02'], status: 'Active' },
+  { id: 'U03', name: 'Admin User', email: 'admin@abclogistics.com', role: Role.Admin, avatarUrl: 'https://picsum.photos/seed/user3/40/40', assignedWarehouses: ['W01', 'W02', 'W03'], status: 'Active' },
+  { id: 'U04', name: 'Mike Ross', email: 'mike.ross@abclogistics.com', role: Role.DockOperator, avatarUrl: 'https://picsum.photos/seed/user4/40/40', assignedWarehouses: ['W02'], status: 'Inactive' },
 ];
 
 export const INITIAL_SETTINGS_DATA: AppSettings = {

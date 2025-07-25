@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Warehouse, WarehouseType } from '../types.ts';
-import { BuildingOfficeIcon, ClockIcon, XCircleIcon, TrashIcon, ChevronDownIcon, UserIcon } from './icons/Icons.tsx';
+import { BuildingOfficeIcon, ClockIcon, XCircleIcon, TrashIcon, ChevronDownIcon, UserIcon, XMarkIcon } from './icons/Icons.tsx';
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode; icon: React.ReactNode; defaultOpen?: boolean }> = ({ title, children, icon, defaultOpen }) => (
     <details className="border border-gray-200 rounded-lg bg-white" open={defaultOpen}>
@@ -45,6 +45,8 @@ interface WarehousePanelProps {
 const WarehousePanel: React.FC<WarehousePanelProps> = ({ isOpen, onClose, onSave, onDelete, warehouse }) => {
     const isCreating = !warehouse;
     const [formData, setFormData] = useState<Partial<Warehouse>>({});
+    const [isAddingBay, setIsAddingBay] = useState(false);
+    const [newBayName, setNewBayName] = useState('');
     const baseInputClasses = "relative w-full bg-gray-100 border-gray-200 border p-2 text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500";
 
     useEffect(() => {
@@ -62,9 +64,10 @@ const WarehousePanel: React.FC<WarehousePanelProps> = ({ isOpen, onClose, onSave
                     dockCount: 10,
                     isEnabled: true,
                     zones: '',
-                    maxVehicleCapacity: 0,
                 };
             setFormData(initialData);
+            setIsAddingBay(false);
+            setNewBayName('');
         }
     }, [isOpen, warehouse]);
 
@@ -93,6 +96,28 @@ const WarehousePanel: React.FC<WarehousePanelProps> = ({ isOpen, onClose, onSave
             onClose();
         }
     };
+    
+    const baysArray = useMemo(() => (
+        formData.zones ? formData.zones.split(',').map(z => z.trim()).filter(Boolean) : []
+    ), [formData.zones]);
+
+    const handleAddBayConfirm = () => {
+        if (!newBayName.trim() || baysArray.includes(newBayName.trim())) {
+            setNewBayName('');
+            setIsAddingBay(false);
+            return;
+        };
+        const newBays = [...baysArray, newBayName.trim()];
+        handleFormChange('zones', newBays.join(', '));
+        setNewBayName('');
+        setIsAddingBay(false);
+    };
+
+    const handleDeleteBay = (bayToDelete: string) => {
+        const newBays = baysArray.filter(b => b !== bayToDelete);
+        handleFormChange('zones', newBays.join(', '));
+    };
+
 
     return (
         <>
@@ -123,6 +148,61 @@ const WarehousePanel: React.FC<WarehousePanelProps> = ({ isOpen, onClose, onSave
                                     <input type="checkbox" checked={formData.isEnabled || false} onChange={e => handleFormChange('isEnabled', e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
                                 </div>
                             </FormField>
+                            <div className="md:col-span-2 space-y-3 pt-4 border-t mt-4">
+                                <label className="text-sm font-medium text-gray-600">Configured Bays</label>
+                                <div className="flex flex-wrap gap-2 p-2 bg-gray-100 rounded-md min-h-[44px] items-center">
+                                    {baysArray.length > 0 ? (
+                                        baysArray.map(bay => (
+                                            <span key={bay} className="flex items-center gap-1 bg-primary-100 text-primary-800 text-sm font-medium px-2.5 py-1 rounded-full">
+                                                {bay}
+                                                <button type="button" onClick={() => handleDeleteBay(bay)} className="text-primary-600 hover:text-primary-800">
+                                                    <XCircleIcon className="w-4 h-4" />
+                                                </button>
+                                            </span>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-gray-500 px-2">No bays added yet.</p>
+                                    )}
+                                </div>
+
+                                <div className="pt-2 space-y-2">
+                                    {isAddingBay && (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Enter Bay Name"
+                                                value={newBayName}
+                                                onChange={(e) => setNewBayName(e.target.value)}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddBayConfirm(); } }}
+                                                className={`${baseInputClasses} flex-grow`}
+                                                autoFocus
+                                            />
+                                            <button 
+                                                type="button" 
+                                                onClick={handleAddBayConfirm} 
+                                                className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                                            >
+                                                Add
+                                            </button>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => { setIsAddingBay(false); setNewBayName(''); }} 
+                                                className="p-2 text-gray-500 rounded-full hover:bg-gray-200 transition-colors"
+                                            >
+                                                <XMarkIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddingBay(true)}
+                                        disabled={isAddingBay}
+                                        className="w-full bg-primary-200 text-primary-700 font-bold py-2.5 px-4 rounded-lg hover:bg-primary-300 transition-colors text-sm shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Add Bay
+                                    </button>
+                                </div>
+                            </div>
                         </FormSection>
 
                         <FormSection title="Operational Details" icon={<ClockIcon />} defaultOpen>
@@ -148,12 +228,6 @@ const WarehousePanel: React.FC<WarehousePanelProps> = ({ isOpen, onClose, onSave
                                     <input type="number" value={formData.dockCount || 0} onChange={e => handleFormChange('dockCount', parseInt(e.target.value) || 0)} min="0" className={baseInputClasses} />
                                 </FormField>
                             )}
-                             <FormField label="Max Vehicle Capacity" className={isCreating ? "" : "md:col-span-2"}>
-                                <input type="number" value={formData.maxVehicleCapacity || 0} onChange={e => handleFormChange('maxVehicleCapacity', parseInt(e.target.value) || 0)} min="0" className={baseInputClasses} />
-                            </FormField>
-                            <FormField label="Warehouse Zones" className="md:col-span-2">
-                                <textarea value={formData.zones || ''} onChange={e => handleFormChange('zones', e.target.value)} placeholder="e.g. Aisles, Cold Zones, etc." rows={3} className={baseInputClasses} />
-                            </FormField>
                         </FormSection>
                         
                         <FormSection title="Contact Information" icon={<UserIcon className="w-5 h-5" />}>

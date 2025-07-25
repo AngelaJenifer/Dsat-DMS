@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Document, DocumentType, DocumentStatus, Vehicle, Dock, Carrier, Vendor } from '../types.ts';
+import { Document, DocumentType, DocumentStatus, Vehicle, Dock, Customer } from '../types.ts';
 import { ICONS } from '../constants.tsx';
 import DocumentModal from './DocumentModal.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
@@ -9,8 +9,8 @@ interface DocumentsProps {
   documents: Document[];
   vehicles: Vehicle[];
   docks: Dock[];
-  carriers: Carrier[];
-  vendors: Vendor[];
+  carriers: Customer[];
+  vendors: Customer[];
   onSave: (document: Omit<Document, 'id'> & { id?: string }) => void;
   onDelete: (documentId: string) => void;
 }
@@ -78,13 +78,25 @@ const Documents: React.FC<DocumentsProps> = ({ documents, vehicles, docks, carri
                 <h1 className="text-2xl font-bold text-gray-800">Documents</h1>
                 <button 
                     onClick={() => handleOpenModal()} 
-                    className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-blue-700 transition-colors"
+                    className="bg-primary-600 text-white font-bold py-2 px-4 rounded-lg shadow hover:bg-primary-700 transition-colors"
                 >
                     Add New Document
                 </button>
             </div>
 
             <div className="flex items-center space-x-4 mb-4">
+                <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-56 pl-10 pr-4 py-2 border bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <SearchIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                </div>
                 <select value={filterType} onChange={e => setFilterType(e.target.value as any)} className={baseSelectClasses}>
                     <option value="all">All Types</option>
                     {Object.values(DocumentType).map(type => (
@@ -97,18 +109,6 @@ const Documents: React.FC<DocumentsProps> = ({ documents, vehicles, docks, carri
                         <option key={status} value={status}>{status}</option>
                     ))}
                 </select>
-                <div className="relative flex-grow">
-                    <input
-                      type="text"
-                      placeholder="Search..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                    />
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <SearchIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                </div>
             </div>
           
             <div className="overflow-x-auto">

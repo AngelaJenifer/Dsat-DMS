@@ -1,22 +1,22 @@
 import React, { useState, useMemo } from 'react';
-import { Carrier, Vehicle, VehicleStatus } from '../types.ts';
+import { Customer, Vehicle, VehicleStatus } from '../types.ts';
 import { ICONS } from '../constants.tsx';
 import CarrierModal from './CarrierModal.tsx';
 import ConfirmationModal from './ConfirmationModal.tsx';
 import { ChevronDownIcon } from './icons/Icons.tsx';
 
 interface CarriersProps {
-  carriers: Carrier[];
+  carriers: Customer[];
   vehicles: Vehicle[];
-  onSave: (carrier: Omit<Carrier, 'id'> & { id?: string }) => void;
+  onSave: (carrier: Omit<Customer, 'id'> & { id?: string }) => void;
   onDelete: (carrierId: string) => void;
 }
 
 const Carriers: React.FC<CarriersProps> = ({ carriers, vehicles, onSave, onDelete }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [carrierToEdit, setCarrierToEdit] = useState<Carrier | null>(null);
-    const [carrierToDelete, setCarrierToDelete] = useState<Carrier | null>(null);
+    const [carrierToEdit, setCarrierToEdit] = useState<Customer | null>(null);
+    const [carrierToDelete, setCarrierToDelete] = useState<Customer | null>(null);
     const [expandedCarrierId, setExpandedCarrierId] = useState<string | null>(null);
 
     const filteredCarriers = useMemo(() => {
@@ -30,7 +30,7 @@ const Carriers: React.FC<CarriersProps> = ({ carriers, vehicles, onSave, onDelet
         );
     }, [carriers, searchQuery]);
 
-    const handleOpenModal = (carrier: Carrier | null = null) => {
+    const handleOpenModal = (carrier: Customer | null = null) => {
         setCarrierToEdit(carrier);
         setIsModalOpen(true);
     };

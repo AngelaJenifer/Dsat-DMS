@@ -1,3 +1,5 @@
+
+
 import React from 'react';
 import { Page } from '../types.ts';
 import { ICONS } from '../constants.tsx';
@@ -37,14 +39,11 @@ const NavItem: React.FC<{
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle, activePage, setActivePage }) => {
   const menuItems = [
     { page: Page.Dashboard, icon: ICONS.dashboard },
-    { page: Page.Appointments, icon: ICONS.appointments },
+    { page: Page.DockScheduler, icon: ICONS.appointments },
     { page: Page.GateManagement, icon: ICONS.gate },
     { page: Page.Operations, icon: ICONS.operations },
-    { page: Page.Docks, icon: ICONS.docks },
-    { page: Page.Carriers, icon: ICONS.carriers },
-    { page: Page.Vendors, icon: ICONS.vendors },
-    { page: Page.Configurations, icon: ICONS.settings },
-    { page: Page.Documents, icon: ICONS.documents },
+    { page: Page.Customers, icon: ICONS.customers },
+    { page: Page.DockManagement, icon: ICONS.docks },
     { page: Page.Reports, icon: ICONS.reports },
   ];
   

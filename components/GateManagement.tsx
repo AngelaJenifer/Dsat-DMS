@@ -1,7 +1,5 @@
-
-
 import React, { useMemo, useState, useEffect } from 'react';
-import { Dock, Vehicle, DockStatus, VehicleStatus, Vendor, TimelineAppointment } from '../types.ts';
+import { Dock, Vehicle, DockStatus, VehicleStatus, Customer, TimelineAppointment } from '../types.ts';
 import { parseAppointmentTime } from '../utils.ts';
 import { ICONS } from '../constants.tsx';
 import { SparklesIcon, TruckIcon, BuildingOfficeIcon, ClockIcon, SnowflakeIcon, CarriersIcon } from './icons/Icons.tsx';
@@ -10,7 +8,7 @@ interface GateManagementProps {
   automationMode: 'Manual' | 'Automatic';
   docks: Dock[];
   vehicles: Vehicle[];
-  vendors: Vendor[];
+  vendors: Customer[];
   timelineAppointments: TimelineAppointment[];
   onCheckIn: (vehicleId: string) => void;
   onAssignToYard: (vehicleId: string) => void;
@@ -104,6 +102,7 @@ const ManualGateManagement: React.FC<GateManagementProps> = ({ docks, vehicles, 
             {filteredApprovedVehicles.map(vehicle => {
                 const dock = getDockById(vehicle.assignedDockId);
                 const isDockAvailable = dock?.status === DockStatus.Available;
+                const dockName = dock?.name || vehicle.assignedDockId;
                 
                 return (
                   <div key={vehicle.id} className="p-4 border rounded-lg flex flex-col md:flex-row items-start justify-between hover:bg-gray-50 transition-all duration-300 space-y-4 md:space-y-0 cursor-pointer" onClick={() => onSelectItem(vehicle)}>
@@ -113,7 +112,7 @@ const ManualGateManagement: React.FC<GateManagementProps> = ({ docks, vehicles, 
                       </div>
                       <div>
                         <p className="font-bold text-gray-800">{vehicle.id} - {vehicle.carrier}</p>
-                        <p className="text-sm text-gray-500">{vehicle.driverName} &bull; Appt: {vehicle.appointmentTime} &bull; Dock: {vehicle.assignedDockId}</p>
+                        <p className="text-sm text-gray-500">{vehicle.driverName} &bull; Appt: {vehicle.appointmentTime} &bull; Dock: {dockName}</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-end space-x-4 w-full md:w-auto flex-wrap gap-x-4 gap-y-2" onClick={e => e.stopPropagation()}>
@@ -185,7 +184,7 @@ const AutomaticGateManagement: React.FC<GateManagementProps> = ({ vehicles, onSi
                 <button
                     onClick={handleSimulate}
                     disabled={!nextVehicleToArrive || isSimulating}
-                    className="w-full flex items-center justify-center bg-brand-accent text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-brand-accent/90 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:scale-100 mb-6"
+                    className="w-full flex items-center justify-center bg-primary-600 text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-primary-700 transition-transform transform hover:scale-105 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:scale-100 mb-6"
                 >
                     {isSimulating ? (
                         <>
@@ -225,6 +224,8 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
   const { automationMode, vehicles, vendors, timelineAppointments, onCheckOut, onSelectItem, onOpenSpotAppointmentModal, onAssignFromYard } = props;
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  const getDockName = (dockId: string) => props.docks.find(d => d.id === dockId)?.name || dockId;
+
   const availableDocks = useMemo(() => props.docks.filter(d => d.status === DockStatus.Available), [props.docks]);
 
   useEffect(() => {
@@ -234,6 +235,13 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
   
   const yardVehicles = useMemo(() => vehicles.filter(v => v.status === VehicleStatus.Yard), [vehicles]);
   const enteredVehicles = useMemo(() => vehicles.filter(v => v.status === VehicleStatus.Entered).sort((a,b) => (a.entryTime && b.entryTime) ? b.entryTime - a.entryTime : 0), [vehicles]);
+  
+  const checkedOutToday = useMemo(() => {
+    const todayStr = currentTime.toDateString();
+    return vehicles
+        .filter(v => v.status === VehicleStatus.Exited && v.exitTime && new Date(v.exitTime).toDateString() === todayStr)
+        .sort((a,b) => (b.exitTime || 0) - (a.exitTime || 0));
+  }, [vehicles, currentTime]);
   
   const InfoRow: React.FC<{ icon: React.ReactNode; label: string; value: string | React.ReactNode; }> = ({ icon, label, value }) => (
     <div className="flex items-center text-sm text-gray-600">
@@ -252,21 +260,21 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
                 <p className="text-gray-500">Manage vehicle entry and exit processes. Mode: <span className="font-bold text-brand-accent">{automationMode}</span></p>
             </div>
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
-                 <button
-                    onClick={onOpenSpotAppointmentModal}
-                    className="bg-brand-accent text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-brand-accent/90 transition-transform transform hover:scale-105"
-                >
-                    + Walk-in Appointment
-                </button>
                 <div className="text-right">
                     <div className="text-2xl font-bold text-gray-800">{currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
                     <div className="text-gray-500">{currentTime.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
                 </div>
+                 <button
+                    onClick={onOpenSpotAppointmentModal}
+                    className="bg-primary-600 text-white font-bold py-3 px-5 rounded-lg shadow-lg hover:bg-primary-700 transition-transform transform hover:scale-105"
+                >
+                    + Spot Appointment
+                </button>
             </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-grow min-h-0">
         
         {automationMode === 'Automatic' ? <AutomaticGateManagement {...props} /> : <ManualGateManagement {...props} />}
         
@@ -290,7 +298,7 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
                              <InfoRow icon={<BuildingOfficeIcon />} label="Vendor" value={vendor?.name || 'N/A'} />
                              <InfoRow icon={<ClockIcon />} label="Appt. Time" value={vehicle.appointmentTime} />
                              <InfoRow icon={<CarriersIcon />} label="Load" value={appointment?.loadType || 'N/A'} />
-                             <InfoRow icon={<TruckIcon />} label="Waiting for" value={`Dock ${vehicle.assignedDockId}`} />
+                             <InfoRow icon={<TruckIcon />} label="Waiting for" value={getDockName(vehicle.assignedDockId)} />
                         </div>
 
                       {automationMode === 'Manual' && (
@@ -320,7 +328,7 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
                         <div className="flex-grow">
                             <p className="font-semibold text-gray-700">{vehicle.id} - {vehicle.driverName}</p>
                             <p className="text-sm text-gray-500">
-                                Entered at {vehicle.entryTime ? new Date(vehicle.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'} to Dock {vehicle.assignedDockId}
+                                Entered at {vehicle.entryTime ? new Date(vehicle.entryTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'} to {getDockName(vehicle.assignedDockId)}
                             </p>
                         </div>
                         <button onClick={(e) => { e.stopPropagation(); onCheckOut(vehicle.id); }} className="bg-red-500 text-white font-bold py-2 px-3 rounded-lg shadow hover:bg-red-600 transition-colors text-sm self-end sm:self-center flex-shrink-0">
@@ -329,6 +337,22 @@ const GateManagement: React.FC<GateManagementProps> = (props) => {
                     </div>
                 ))}
                 {enteredVehicles.length === 0 && <p className="text-center text-gray-500 py-4">No vehicles are currently at the docks.</p>}
+            </div>
+        </div>
+        
+        {/* Column 4: Today's Check-Outs */}
+        <div className="bg-white p-6 rounded-xl shadow-md flex flex-col h-full">
+            <h2 className="text-xl font-bold text-gray-700 mb-4 flex-shrink-0">Today's Check-Outs ({checkedOutToday.length})</h2>
+            <div className="flex-grow space-y-3 overflow-y-auto pr-2">
+                {checkedOutToday.map(vehicle => (
+                    <div key={vehicle.id} className={`p-3 border-l-4 rounded-r-lg bg-gray-50 border-gray-300 cursor-pointer hover:bg-gray-100`} onClick={() => onSelectItem(vehicle)}>
+                        <p className="font-semibold text-gray-700">{vehicle.id} - {vehicle.carrier}</p>
+                        <p className="text-sm text-gray-500">
+                            Exited at {vehicle.exitTime ? new Date(vehicle.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A'} from {getDockName(vehicle.assignedDockId)}
+                        </p>
+                    </div>
+                ))}
+                {checkedOutToday.length === 0 && <p className="text-center text-gray-500 py-4">No vehicles have checked out today.</p>}
             </div>
         </div>
 

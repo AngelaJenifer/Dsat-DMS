@@ -86,7 +86,6 @@ const AppointmentModal: React.FC<{ isOpen: boolean; onClose: () => void; appoint
             return;
         }
         onSave(formData as TimelineAppointment);
-        onClose();
     };
     
     const handleFormChange = (field: keyof TimelineAppointment, value: any) => setFormData(p => ({ ...p, [field]: value }));

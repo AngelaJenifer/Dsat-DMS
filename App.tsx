@@ -1,22 +1,14 @@
-
-
-
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar.tsx';
 import Header from './components/Header.tsx';
 import Dashboard from './components/Dashboard.tsx';
-import { Appointments } from './components/Appointments.tsx';
 import GateManagement from './components/GateManagement.tsx';
 import Operations from './components/Operations.tsx';
-import Docks from './components/Docks.tsx';
-import Carriers from './components/Carriers.tsx';
-import Vendors from './components/Vendors.tsx';
+import Customers from './components/Customers.tsx';
 import Help from './components/Help.tsx';
-import Documents from './components/Documents.tsx';
 import Settings from './components/Settings.tsx';
 import Reports from './components/Reports.tsx';
 import Configurations from './components/Configurations.tsx';
-import AddRolePanel, { PermissionsState } from './components/AddRolePanel.tsx';
 import GatePassModal from './components/GatePassModal.tsx';
 import SpotAppointmentModal from './components/SpotAppointmentModal.tsx';
 import ActivityFeed from './components/ActivityFeed.tsx';
@@ -27,10 +19,13 @@ import WarehousePanel from './components/WarehouseModal.tsx';
 import DockModal from './components/DockModal.tsx';
 import StartOperationModal from './components/StartOperationModal.tsx';
 import AIAssistantModal from './components/AIAssistantModal.tsx';
-import { Page, Dock, Vehicle, DockStatus, VehicleStatus, Operation, OperationStatus, OperationType, Carrier, Vendor, Document, User, AppSettings, Role, DashboardData, DockActivityStatus, TimelineAppointment, ReportData, ActivityLog, ActivityLogType, DocumentStatus, TimelineDock, Warehouse, WarehouseType, DockType } from './types.ts';
-import { DOCKS_DATA, VEHICLES_DATA, OPERATIONS_DATA, CARRIERS_DATA, VENDORS_DATA, DOCUMENTS_DATA, USERS_DATA, INITIAL_SETTINGS_DATA, TIMELINE_APPOINTMENTS_DATA, TIMELINE_DOCKS_DATA, INITIAL_ACTIVITY_LOG_DATA, WAREHOUSES_DATA } from './constants.tsx';
-import { AppointmentsIcon, CheckCircleIcon, ClockIcon, TruckIcon, XCircleIcon, AlertTriangleIcon, DocksIcon } from './components/icons/Icons.tsx';
-import { parseAppointmentTime } from './utils.ts';
+import CreateUserModal from './components/InviteUserModal.tsx';
+import CustomerPanel from './components/CustomerPanel.tsx';
+import { DockScheduler } from './components/DockScheduler.tsx';
+import { Page, Dock, Vehicle, DockStatus, VehicleStatus, Operation, OperationStatus, OperationType, Customer, Document, User, AppSettings, Role, DashboardData, DockActivityStatus, TimelineAppointment, ReportData, ActivityLog, ActivityLogType, DocumentStatus, TimelineDock, Warehouse, WarehouseType, DockType, CustomerType, PermissionsState, TimeSlotsData } from './types.ts';
+import { DOCKS_DATA, VEHICLES_DATA, OPERATIONS_DATA, CUSTOMERS_DATA, DOCUMENTS_DATA, USERS_DATA, INITIAL_SETTINGS_DATA, TIMELINE_APPOINTMENTS_DATA, TIMELINE_DOCKS_DATA, INITIAL_ACTIVITY_LOG_DATA, WAREHOUSES_DATA, TIME_SLOTS_DATA } from './constants.tsx';
+import { AppointmentsIcon, CheckCircleIcon, ClockIcon, TruckIcon, XCircleIcon, AlertTriangleIcon, DocksIcon, Squares2X2Icon } from './components/icons/Icons.tsx';
+import { parseAppointmentTime, formatDate } from './utils.ts';
 import { getReportSummary } from './services/geminiService.ts';
 
 const MAX_LOG_ENTRIES = 20;
@@ -44,18 +39,18 @@ const App: React.FC = () => {
   const [docks, setDocks] = useState<Dock[]>(DOCKS_DATA);
   const [vehicles, setVehicles] = useState<Vehicle[]>(VEHICLES_DATA);
   const [operations, setOperations] = useState<Operation[]>(OPERATIONS_DATA);
-  const [carriers, setCarriers] = useState<Carrier[]>(CARRIERS_DATA);
-  const [vendors, setVendors] = useState<Vendor[]>(VENDORS_DATA);
+  const [customers, setCustomers] = useState<Customer[]>(CUSTOMERS_DATA);
   const [documents, setDocuments] = useState<Document[]>(DOCUMENTS_DATA);
   const [timelineAppointments, setTimelineAppointments] = useState<TimelineAppointment[]>(TIMELINE_APPOINTMENTS_DATA);
   const [users, setUsers] = useState<User[]>(USERS_DATA);
   const [appSettings, setAppSettings] = useState<AppSettings>(INITIAL_SETTINGS_DATA);
   const [activityLog, setActivityLog] = useState<ActivityLog[]>(INITIAL_ACTIVITY_LOG_DATA);
+  const [timeSlots, setTimeSlots] = useState<TimeSlotsData>(TIME_SLOTS_DATA);
 
   // UI / Contextual State
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>(warehouses[0]?.id || '');
   const [gatePassVehicle, setGatePassVehicle] = useState<Vehicle | null>(null);
-  const [isAddRolePanelOpen, setIsAddRolePanelOpen] = useState(false);
   const [isSpotAppointmentModalOpen, setIsSpotAppointmentModalOpen] = useState(false);
   const [isStartOperationModalOpen, setIsStartOperationModalOpen] = useState(false);
   const [selectedDetailItem, setSelectedDetailItem] = useState<Vehicle | Dock | null>(null);
@@ -63,6 +58,10 @@ const App: React.FC = () => {
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false);
   const [warehousePanelState, setWarehousePanelState] = useState<{ isOpen: boolean; warehouse: Warehouse | null; }>({ isOpen: false, warehouse: null });
   const [dockPanelState, setDockPanelState] = useState<{ isOpen: boolean; dock: Dock | null; warehouseId?: string }>({ isOpen: false, dock: null });
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [customerPanelState, setCustomerPanelState] = useState<{ isOpen: boolean; customer: Customer | null }>({ isOpen: false, customer: null });
+
 
   // --- AUTOMATION STATE ---
   const [automationMode, setAutomationMode] = useState<'Manual' | 'Automatic'>('Manual');
@@ -86,7 +85,6 @@ const App: React.FC = () => {
       filteredOperations,
       filteredTimelineAppointments,
       filteredTimelineDocks,
-      filteredDocuments
   } = useMemo(() => {
       const currentDocks = docks.filter(d => d.warehouseId === selectedWarehouseId);
       const currentDockIds = new Set(currentDocks.map(d => d.id));
@@ -94,8 +92,6 @@ const App: React.FC = () => {
       const currentAppointments = timelineAppointments.filter(a => currentDockIds.has(a.dockId));
       const currentOperations = operations.filter(o => currentDockIds.has(o.dockId));
       const currentVehicles = vehicles.filter(v => currentDockIds.has(v.assignedDockId));
-      const currentVehicleIds = new Set(currentVehicles.map(v => v.id));
-      const currentDocuments = documents.filter(d => currentVehicleIds.has(d.vehicleId));
       
       const currentTimelineDocks = TIMELINE_DOCKS_DATA.filter(d => currentDockIds.has(d.id));
 
@@ -105,7 +101,6 @@ const App: React.FC = () => {
           filteredOperations: currentOperations,
           filteredTimelineAppointments: currentAppointments,
           filteredTimelineDocks: currentTimelineDocks,
-          filteredDocuments: currentDocuments
       };
   }, [selectedWarehouseId, docks, vehicles, operations, timelineAppointments, documents]);
 
@@ -119,9 +114,22 @@ const App: React.FC = () => {
   };
 
   const handleAutomatedCheckOut = useCallback((vehicleId: string, dockId: string) => {
-    setOperations(prev => prev.map(op => op.vehicleId === vehicleId && op.status !== OperationStatus.Completed ? { ...op, status: OperationStatus.Completed, actualCompletionTime: Date.now() } : op));
-    setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: VehicleStatus.Exited, exitTime: Date.now() } : v));
+    const completionTime = Date.now();
+    setOperations(prev => prev.map(op => op.vehicleId === vehicleId && op.status !== OperationStatus.Completed ? { ...op, status: OperationStatus.Completed, actualCompletionTime: completionTime } : op));
+    setVehicles(prev => prev.map(v => v.id === vehicleId ? { ...v, status: VehicleStatus.Exited, exitTime: completionTime } : v));
     setDocks(prev => prev.map(d => d.id === dockId ? { ...d, status: DockStatus.Available, notes: 'Operation completed automatically' } : d));
+    
+    setTimelineAppointments(prev => prev.map(appt => {
+        if (appt.vehicleNumber === vehicleId && formatDate(new Date(appt.startTime)) === formatDate(new Date(completionTime))) {
+            return {
+                ...appt,
+                status: 'Completed',
+                actualCompletionTime: new Date(completionTime),
+            };
+        }
+        return appt;
+    }));
+
     addActivity(`AUTO: Vehicle ${vehicleId} operation completed. Checked out from ${dockId}.`, ActivityLogType.CheckOut);
   }, [addActivity]);
 
@@ -216,7 +224,8 @@ const App: React.FC = () => {
   };
 
   const reportsData = useMemo((): ReportData => {
-    const carrierPerformance = CARRIERS_DATA.slice(0,10).map(c => ({
+    const carriers = customers.filter(c => c.customerType === CustomerType.Carrier);
+    const carrierPerformance = carriers.slice(0,10).map(c => ({
         name: c.name,
         totalAppointments: Math.floor(Math.random() * 50) + 10,
         onTimePercentage: Math.floor(Math.random() * 20) + 80,
@@ -242,7 +251,7 @@ const App: React.FC = () => {
         totalDelayed: filteredOperations.filter(op => op.status === 'Delayed').length,
         overallAvgTurnaround: 42,
     }
-  }, [filteredOperations, filteredDocks]);
+  }, [filteredOperations, filteredDocks, customers]);
 
   const handleGenerateReportSummary = async () => {
       setReportSummary({ text: '', isLoading: true });
@@ -318,25 +327,19 @@ const App: React.FC = () => {
   
   // --- MANUAL ACTIONS ---
   const handleCheckIn = (vehicleId: string) => {
-    const vehicle = filteredVehicles.find(v => v.id === vehicleId);
-    if (!vehicle) return;
-    let updatedVehicle: Vehicle | null = null;
-    setVehicles(prevVehicles =>
-      prevVehicles.map(v => {
-        if (v.id === vehicleId) {
-            updatedVehicle = { ...v, status: VehicleStatus.Entered, entryTime: Date.now() };
-            return updatedVehicle;
-        }
-        return v;
-      })
-    );
-    if (updatedVehicle) {
-        setGatePassVehicle(updatedVehicle);
-        addActivity(`Vehicle ${vehicle.id} checked in to Dock ${vehicle.assignedDockId}.`, ActivityLogType.CheckIn);
+    const vehicleToUpdate = vehicles.find(v => v.id === vehicleId);
+    if (!vehicleToUpdate) {
+      console.error(`Check-in failed: Vehicle ${vehicleId} not found.`);
+      return;
     }
-    setDocks(prevDocks =>
-      prevDocks.map(d => d.id === vehicle.assignedDockId ? { ...d, status: DockStatus.Occupied, notes: `Vehicle ${vehicleId} checked in.` } : d)
-    );
+
+    const updatedVehicle = { ...vehicleToUpdate, status: VehicleStatus.Entered, entryTime: Date.now() };
+
+    setVehicles(prev => prev.map(v => v.id === vehicleId ? updatedVehicle : v));
+    setDocks(prev => prev.map(d => d.id === updatedVehicle.assignedDockId ? { ...d, status: DockStatus.Occupied, notes: `Vehicle ${vehicleId} checked in.` } : d));
+    
+    setGatePassVehicle(updatedVehicle);
+    addActivity(`Vehicle ${updatedVehicle.id} checked in to Dock ${updatedVehicle.assignedDockId}.`, ActivityLogType.CheckIn);
   };
 
   const handleAssignToYard = (vehicleId: string, isAuto: boolean = false) => {
@@ -420,9 +423,22 @@ const App: React.FC = () => {
     const op = operations.find(o => o.id === operationId);
     if (!op) return;
 
-    setOperations(prev => prev.map(o => o.id === operationId ? { ...o, status: OperationStatus.Completed, actualCompletionTime: Date.now() } : o));
+    const completionTime = Date.now();
+    setOperations(prev => prev.map(o => o.id === operationId ? { ...o, status: OperationStatus.Completed, actualCompletionTime: completionTime } : o));
     setDocks(prev => prev.map(d => d.id === op.dockId ? { ...d, status: DockStatus.Available, notes: undefined } : d));
-    setVehicles(prev => prev.map(v => v.id === op.vehicleId ? { ...v, status: VehicleStatus.Exited, exitTime: Date.now() } : v));
+    setVehicles(prev => prev.map(v => v.id === op.vehicleId ? { ...v, status: VehicleStatus.Exited, exitTime: completionTime } : v));
+    
+    setTimelineAppointments(prev => prev.map(appt => {
+        if (appt.vehicleNumber === op.vehicleId && formatDate(new Date(appt.startTime)) === formatDate(new Date(completionTime))) {
+            return {
+                ...appt,
+                status: 'Completed',
+                actualCompletionTime: new Date(completionTime),
+            };
+        }
+        return appt;
+    }));
+
     addActivity(`Operation for vehicle ${op.vehicleId} completed.`, ActivityLogType.Complete);
     handleCloseDetailPanel();
   };
@@ -468,64 +484,46 @@ const App: React.FC = () => {
       addActivity(`Dock ${dockName || dockId} was deleted.`, ActivityLogType.Maintenance);
   };
 
-  const handleSaveCarrier = (carrierData: Omit<Carrier, 'id'> & { id?: string }) => {
-    setCarriers(prev => {
-        if(carrierData.id) {
-            return prev.map(c => c.id === carrierData.id ? { ...c, ...carrierData } : c);
-        } else {
-            const newCarrier: Carrier = { ...carrierData, id: `C${prev.length + 1}`};
-            return [...prev, newCarrier];
-        }
-    });
-     addActivity(`Carrier ${carrierData.name} was ${carrierData.id ? 'updated' : 'created'}.`, ActivityLogType.NewAppointment);
+  const handleOpenCustomerPanel = (customer: Customer | null = null) => {
+    setCustomerPanelState({ isOpen: true, customer });
+  };
+  const handleCloseCustomerPanel = () => {
+    setCustomerPanelState({ isOpen: false, customer: null });
   };
 
-  const handleDeleteCarrier = (carrierId: string) => {
-    const carrierName = carriers.find(c => c.id === carrierId)?.name;
-    setCarriers(prev => prev.filter(c => c.id !== carrierId));
-    addActivity(`Carrier ${carrierName || carrierId} was deleted.`, ActivityLogType.NewAppointment);
+  const handleSaveCustomer = (customerData: Omit<Customer, 'id'> & { id?: string }) => {
+    setCustomers(prev => {
+        const isEditing = !!customerData.id;
+        if (isEditing) {
+            return prev.map(c => c.id === customerData.id ? { ...c, ...customerData } as Customer : c);
+        } else {
+            const prefix = customerData.customerType === CustomerType.Carrier ? 'C' : 'V';
+            const newCustomer: Customer = { 
+                ...customerData,
+                id: `${prefix}${Date.now()}` 
+            } as Customer;
+            return [...prev, newCustomer];
+        }
+    });
+    addActivity(`${customerData.customerType} ${customerData.name} was ${customerData.id ? 'updated' : 'created'}.`, ActivityLogType.NewAppointment);
+    handleCloseCustomerPanel();
   };
 
-  const handleSaveVendor = (vendorData: Omit<Vendor, 'id'> & { id?: string }) => {
-    setVendors(prev => {
-        if(vendorData.id) {
-            return prev.map(v => v.id === vendorData.id ? { ...v, ...vendorData } : v);
-        } else {
-            const newVendor: Vendor = { ...vendorData, id: `V${prev.length + 1}`};
-            return [...prev, newVendor];
-        }
-    });
-    addActivity(`Vendor ${vendorData.name} was ${vendorData.id ? 'updated' : 'created'}.`, ActivityLogType.NewAppointment);
+  const handleDeleteCustomer = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return;
+    setCustomers(prev => prev.filter(c => c.id !== customerId));
+    addActivity(`${customer.customerType} ${customer.name} was deleted.`, ActivityLogType.NewAppointment);
   };
   
-  const handleDeleteVendor = (vendorId: string) => {
-      const vendorName = vendors.find(v => v.id === vendorId)?.name;
-      setVendors(prev => prev.filter(v => v.id !== vendorId));
-      addActivity(`Vendor ${vendorName || vendorId} was deleted.`, ActivityLogType.NewAppointment);
-  };
-  
-  const handleSaveDocument = (docData: Omit<Document, 'id'> & { id?: string }) => {
-    setDocuments(prev => {
-        if(docData.id) {
-            return prev.map(d => d.id === docData.id ? { ...d, ...docData } as Document : d);
-        } else {
-            const newDoc: Document = { ...docData, id: `DOC-${Date.now()}` } as Document;
-            return [...prev, newDoc];
-        }
-    });
-    addActivity(`Document ${docData.name} was ${docData.id ? 'updated' : 'uploaded'}.`, ActivityLogType.NewAppointment);
-  };
-  
-  const handleDeleteDocument = (docId: string) => {
-      const docName = documents.find(d => d.id === docId)?.name;
-      setDocuments(prev => prev.filter(d => d.id !== docId));
-      addActivity(`Document ${docName || docId} was deleted.`, ActivityLogType.NewAppointment);
-  };
-  
-  const handleSaveRole = (roleData: { roleName: string; roleDescription: string; permissions: PermissionsState; }) => {
-      console.log("New Role Saved:", roleData);
-      addActivity(`A new role "${roleData.roleName}" was configured.`, ActivityLogType.Maintenance);
-      setIsAddRolePanelOpen(false);
+  const handleSaveRole = (roleData: { roleName: string; roleDescription: string; permissions: PermissionsState; isEditing?: boolean; }) => {
+      if (roleData.isEditing) {
+          console.log("Role Updated:", roleData);
+          addActivity(`Role '${roleData.roleName}' was updated.`, ActivityLogType.Maintenance);
+      } else {
+          console.log("New Role Saved:", roleData);
+          addActivity(`A new role '${roleData.roleName}' was configured.`, ActivityLogType.Maintenance);
+      }
   };
   
   const handleDeleteUser = (userId: string) => {
@@ -556,6 +554,7 @@ const App: React.FC = () => {
         }
     });
     addActivity(`Appointment for ${apptData.companyName} was ${apptData.id.startsWith('apt-manual') ? 'created' : 'updated'}.`, ActivityLogType.NewAppointment);
+    handleCloseAppointmentPanel();
   };
   
   const handleDeleteAppointment = (appointmentId: string) => {
@@ -564,21 +563,28 @@ const App: React.FC = () => {
       addActivity(`Appointment ${appt?.appointmentId} for ${appt?.companyName} was deleted.`, ActivityLogType.NewAppointment);
   }
   
-  const handleCreateSpotAppointment = (data: { vehicleId: string; driverName: string; carrier: string; vendorId: string; assignedDockId: string; checkIn: boolean }) => {
+  const handleCreateSpotAppointment = (data: { vehicleId: string; driverName: string; customerId: string; assignedDockId: string; checkIn: boolean }) => {
+    const customer = customers.find(c => c.id === data.customerId);
+    if (!customer) {
+        alert("Selected customer not found.");
+        return;
+    }
+
+    const now = new Date();
     const newAppointment: TimelineAppointment = {
-        id: `apt-spot-${Date.now()}`,
+        id: `apt-spot-${now.getTime()}`,
         appointmentId: `WALK-IN-${data.vehicleId}`,
-        companyName: vendors.find(v => v.id === data.vendorId)?.name || 'Unknown Vendor',
+        companyName: customer.name,
         purposeOfVisit: 'Walk-in/Spot',
         loadType: 'Mixed',
-        startTime: new Date(),
-        endTime: new Date(Date.now() + 30 * 60 * 1000), // 30 min duration
+        startTime: now,
+        endTime: new Date(now.getTime() + 30 * 60 * 1000), // 30 min duration
         expectedDuration: 30,
         dockId: data.assignedDockId,
         status: 'Approved',
         appointmentType: 'Inbound', // Assuming inbound for walk-ins
         vehicleNumber: data.vehicleId,
-        transporter: data.carrier,
+        transporter: customer.name,
         driverName: data.driverName,
         driverContact: 'N/A',
         vehicleType: 'Unknown',
@@ -588,23 +594,31 @@ const App: React.FC = () => {
         securityClearanceStatus: 'Approved'
     };
     
+    const vehicleStatus = data.checkIn ? VehicleStatus.Entered : VehicleStatus.Yard;
+    const entryTimestamp = data.checkIn ? now.getTime() : undefined;
+
     const newVehicle: Vehicle = {
         id: data.vehicleId,
         driverName: data.driverName,
-        carrier: data.carrier,
-        vendorId: data.vendorId,
+        carrier: customer.name,
+        vendorId: customer.id,
         appointmentTime: newAppointment.startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         assignedDockId: data.assignedDockId,
-        status: VehicleStatus.Approved,
+        status: vehicleStatus,
+        entryTime: entryTimestamp,
     };
     
     setTimelineAppointments(prev => [...prev, newAppointment]);
     setVehicles(prev => [...prev, newVehicle]);
     
     if (data.checkIn) {
-        handleCheckIn(data.vehicleId);
+        setDocks(prevDocks =>
+          prevDocks.map(d => d.id === data.assignedDockId ? { ...d, status: DockStatus.Occupied, notes: `Vehicle ${data.vehicleId} checked in.` } : d)
+        );
+        setGatePassVehicle(newVehicle);
+        addActivity(`Vehicle ${newVehicle.id} checked in to Dock ${data.assignedDockId}.`, ActivityLogType.CheckIn);
     } else {
-        handleAssignToYard(data.vehicleId);
+        addActivity(`Vehicle ${newVehicle.id} assigned to yard.`, ActivityLogType.Yard);
     }
     
     setIsSpotAppointmentModalOpen(false);
@@ -657,290 +671,199 @@ const App: React.FC = () => {
       addActivity(`Warehouse ${whName || warehouseId} was deleted.`, ActivityLogType.Maintenance);
   };
 
+  const handleOpenUserModal = (user: User | null = null) => {
+    setEditingUser(user);
+    setIsUserModalOpen(true);
+  };
+
+  const handleCloseUserModal = () => {
+    setIsUserModalOpen(false);
+    setEditingUser(null);
+  };
+
+  const handleSaveUser = (userData: Partial<User> & { password?: string }) => {
+    // We don't use the password here, but in a real app it would be sent to a backend
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...restOfUserData } = userData;
+  
+    if (restOfUserData.id) { // Editing existing user
+        setUsers(prevUsers => 
+            prevUsers.map(user => 
+                user.id === restOfUserData.id ? { ...user, ...restOfUserData } as User : user
+            )
+        );
+        addActivity(`User ${restOfUserData.name} was updated.`, ActivityLogType.Maintenance);
+    } else { // Creating new user
+        const newUser: User = {
+            id: `U${users.length + 1}-${Math.random().toString(16).slice(2)}`,
+            avatarUrl: `https://picsum.photos/seed/user${users.length + 1}/40/40`,
+            ...restOfUserData,
+        } as User;
+        setUsers(prev => [...prev, newUser]);
+        addActivity(`User ${newUser.name} was created with role ${newUser.role}.`, ActivityLogType.Maintenance);
+    }
+    
+    handleCloseUserModal();
+  };
+
+
   const dashboardData = useMemo((): DashboardData => {
       const today = new Date();
       const todaysAppointments = filteredTimelineAppointments.filter(a => new Date(a.startTime).toDateString() === today.toDateString());
       const completedToday = todaysAppointments.filter(a => a.status === 'Completed');
       const cancelledToday = filteredTimelineAppointments.filter(a => new Date(a.startTime).toDateString() === today.toDateString() && a.status === 'Cancelled');
-      const pendingToday = todaysAppointments.filter(a => a.status === 'Draft');
       const activeDocks = filteredDocks.filter(d => d.status === DockStatus.Occupied);
       const delayedVehicles = filteredOperations.filter(op => op.status === OperationStatus.Delayed);
+      const yardVehicles = filteredVehicles.filter(v => v.status === VehicleStatus.Yard);
 
       return {
-      kpis: [
-        { 
-            title: "Today's Appointments", 
-            value: `${todaysAppointments.length}`, 
-            subtext: 'Inbound & outbound combined', 
-            icon: AppointmentsIcon,
-            iconBgColor: 'bg-blue-400' 
-        },
-        { 
-            title: 'On-Time Arrivals', 
-            value: '91%', 
-            subtext: 'Compared to scheduled slots', 
-            icon: CheckCircleIcon, 
-            iconBgColor: 'bg-green-400' 
-        },
-        { 
-            title: 'Average Turnaround Time', 
-            value: '41 min', 
-            subtext: 'Last 24 hours', 
-            icon: ClockIcon, 
-            iconBgColor: 'bg-yellow-400' 
-        },
-        { 
-            title: 'Appointments Completed', 
-            value: `${completedToday.length}/${todaysAppointments.length}`, 
-            subtext: 'Out of total booked slots', 
-            icon: TruckIcon, 
-            iconBgColor: 'bg-purple-400'
-        },
-        { 
-            title: 'Cancellations', 
-            value: `${cancelledToday.length}`,
-            subtext: 'By clients or internal team', 
-            icon: XCircleIcon, 
-            iconBgColor: 'bg-gray-400' 
-        },
-        { 
-            title: 'Pending Approvals', 
-            value: `${pendingToday.length}`, 
-            subtext: 'Requires action', 
-            icon: AlertTriangleIcon, 
-            iconBgColor: 'bg-purple-400' 
-        },
-        { 
-            title: 'Active Docks', 
-            value: `${activeDocks.length}`, 
-            subtext: 'Real-time dock engagement', 
-            icon: DocksIcon, 
-            iconBgColor: 'bg-cyan-400' 
-        },
-        { 
-            title: 'Delayed Vehicles', 
-            value: `${delayedVehicles.length}`, 
-            subtext: 'Beyond scheduled time window', 
-            icon: AlertTriangleIcon, 
-            iconBgColor: 'bg-red-400' 
-        },
-      ],
-      dockActivities: filteredOperations.slice(0, 5).map(op => {
-          const vehicle = filteredVehicles.find(v => v.id === op.vehicleId);
-          return {
-              id: op.id,
-              dockName: op.dockId,
-              vehicleNumber: op.vehicleId,
-              carrier: vehicle?.carrier || 'Unknown',
-              startTime: new Date(op.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-              endTime: new Date(op.estCompletionTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-              status: op.status as DockActivityStatus,
-          };
-      }),
-      idleTimePerDock: [], // Placeholder
-      loadUnloadTrend: Array.from({length: 7}).map((_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (6-i));
-          return {
-              name: d.toLocaleDateString('en-US', {weekday: 'short'}),
-              loading: Math.floor(Math.random() * 15) + 5,
-              unloading: Math.floor(Math.random() * 15) + 8,
-          }
-      }),
-      onTimeVsLateData: [{ name: 'On-Time', value: 85 }, { name: 'Late', value: 15 }], // Placeholder
-      handlingRatio: { manual: 60, automated: 40 }, // Placeholder
-  }
-}, [filteredVehicles, filteredOperations, filteredDocks, filteredTimelineAppointments]);
-
-  const renderPage = () => {
-    switch (activePage) {
-      case Page.Dashboard:
-        return <Dashboard data={dashboardData} docks={filteredDocks} vehicles={filteredVehicles} operations={filteredOperations} timelineAppointments={filteredTimelineAppointments} onSelectItem={handleSelectItem} />;
-      case Page.Appointments:
-        return <Appointments 
-            appointments={filteredTimelineAppointments} 
-            docks={filteredTimelineDocks} 
-            onOpenCreatePanel={handleOpenAppointmentPanelForCreate} 
-            onOpenEditPanel={handleOpenAppointmentPanelForEdit}
-            onOpenSlotFinder={() => setIsSlotFinderModalOpen(true)}
-            settings={appSettings}
-            />;
-      case Page.GateManagement:
-        return <GateManagement 
-            automationMode={automationMode}
-            docks={filteredDocks}
-            vehicles={filteredVehicles}
-            vendors={vendors}
-            timelineAppointments={filteredTimelineAppointments}
-            onCheckIn={handleCheckIn}
-            onAssignToYard={handleAssignToYard}
-            onAssignFromYard={handleAssignFromYard}
-            onCheckOut={handleCheckOut}
-            onSetDockAvailable={handleClearDockMaintenance}
-            onOpenSpotAppointmentModal={() => setIsSpotAppointmentModalOpen(true)}
-            onSelectItem={handleSelectItem}
-            onSimulateArrival={handleSimulateArrival}
-            />;
-      case Page.Operations:
-        return <Operations 
-            operations={filteredOperations}
-            vehicles={filteredVehicles.filter(v => v.status === VehicleStatus.Entered)}
-            onStartOperationSimple={handleStartOperationSimple}
-            onCompleteOperation={handleCompleteOperation}
-            onReportDelay={handleReportDelay}
-            onOpenStartOperationModal={() => setIsStartOperationModalOpen(true)}
-            />;
-      case Page.Docks:
-        return <Docks 
-            docks={filteredDocks}
-            vehicles={filteredVehicles}
-            operations={filteredOperations}
-            timelineAppointments={filteredTimelineAppointments}
-            automationMode={automationMode}
-            recentlyUpdatedDocks={recentlyUpdatedDocks}
-            onRunPredictiveMaintenance={handleRunPredictiveMaintenance}
-            onSetMaintenance={handleSetDockMaintenance}
-            onClearMaintenance={handleClearDockMaintenance}
-            onSelectItem={handleSelectItem}
-            onBookAppointment={handleBookAppointmentForDock}
-            />;
-      case Page.Carriers:
-        return <Carriers carriers={carriers} vehicles={vehicles} onSave={handleSaveCarrier} onDelete={handleDeleteCarrier} />;
-      case Page.Vendors:
-        return <Vendors vendors={vendors} vehicles={vehicles} onSave={handleSaveVendor} onDelete={handleDeleteVendor}/>;
-      case Page.Documents:
-        return <Documents 
-                    documents={filteredDocuments} 
-                    vehicles={filteredVehicles}
-                    docks={filteredDocks}
-                    carriers={carriers}
-                    vendors={vendors}
-                    onSave={handleSaveDocument} 
-                    onDelete={handleDeleteDocument}
-                />;
-      case Page.Reports:
-        return <Reports />;
-      case Page.Settings:
-        return <Settings 
-            users={users} 
-            settings={appSettings} 
-            onDeleteUser={handleDeleteUser}
-            onSettingsChange={handleSettingsChange}
-            onInviteClick={() => setIsAddRolePanelOpen(true)}
-        />;
-      case Page.Help:
-        return <Help onSubmitSupportRequest={handleSubmitSupportRequest} />;
-      case Page.Configurations:
-        return <Configurations 
-            warehouses={warehouses}
-            docks={docks}
-            onSaveWarehouse={handleSaveWarehouse}
-            onDeleteWarehouse={handleDeleteWarehouse}
-            onOpenWarehousePanel={(wh) => setWarehousePanelState({isOpen: true, warehouse: wh})}
-            onSaveDock={handleSaveDock}
-            onDeleteDock={handleDeleteDock}
-            onOpenDockPanel={(dock, whId) => setDockPanelState({isOpen: true, dock, warehouseId: whId})}
-            />;
-      default:
-        return <Dashboard data={dashboardData} docks={filteredDocks} vehicles={filteredVehicles} operations={filteredOperations} timelineAppointments={filteredTimelineAppointments} onSelectItem={handleSelectItem} />;
-    }
-  };
+          kpis: [
+            { 
+                title: "Today's Appointments", 
+                value: `${todaysAppointments.length}`, 
+                subtext: 'Inbound & outbound combined', 
+                icon: AppointmentsIcon,
+                iconBgColor: 'bg-blue-400' 
+            },
+            { 
+                title: 'On-Time Arrivals', 
+                value: '91%', 
+                subtext: 'Compared to scheduled slots', 
+                icon: CheckCircleIcon, 
+                iconBgColor: 'bg-green-400' 
+            },
+            { 
+                title: 'Average Turnaround Time', 
+                value: '41 min', 
+                subtext: 'Last 24 hours', 
+                icon: ClockIcon, 
+                iconBgColor: 'bg-yellow-400' 
+            },
+            { 
+                title: 'Appointments Completed', 
+                value: `${completedToday.length}/${todaysAppointments.length}`, 
+                subtext: 'Out of total booked slots', 
+                icon: TruckIcon, 
+                iconBgColor: 'bg-purple-400'
+            },
+            { 
+                title: 'Cancelled Appointments', 
+                value: `${cancelledToday.length}`, 
+                subtext: "Today's cancellations", 
+                icon: XCircleIcon, 
+                iconBgColor: 'bg-red-400'
+            },
+            {
+                title: 'Active Docks',
+                value: `${activeDocks.length} / ${filteredDocks.length}`,
+                subtext: 'Docks currently occupied',
+                icon: DocksIcon,
+                iconBgColor: 'bg-cyan-400'
+            },
+            {
+                title: 'Vehicles in Yard',
+                value: `${yardVehicles.length}`,
+                subtext: 'Awaiting dock assignment',
+                icon: Squares2X2Icon,
+                iconBgColor: 'bg-indigo-400'
+            },
+            {
+                title: 'Delayed Operations',
+                value: `${delayedVehicles.length}`,
+                subtext: 'Operations currently delayed',
+                icon: AlertTriangleIcon,
+                iconBgColor: 'bg-orange-400'
+            }
+          ],
+          dockActivities: filteredOperations
+              .filter(op => op.status === OperationStatus.InProgress || op.status === OperationStatus.Delayed)
+              .slice(0, 5)
+              .map(op => {
+                  const vehicle = vehicles.find(v => v.id === op.vehicleId);
+                  const dock = filteredDocks.find(d => d.id === op.dockId);
+                  return {
+                      id: op.id,
+                      dockName: dock ? dock.name : op.dockId,
+                      vehicleNumber: op.vehicleId,
+                      carrier: vehicle?.carrier || 'Unknown',
+                      startTime: new Date(op.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      endTime: new Date(op.estCompletionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      status: op.type as DockActivityStatus,
+                  };
+              }),
+          idleTimePerDock: filteredDocks.slice(0, 5).map(d => ({ name: d.name, hours: d.status === DockStatus.Available ? Math.floor(Math.random() * 4) + 1 : 0 })),
+          loadUnloadTrend: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+              name: day,
+              loading: Math.floor(Math.random() * 30) + 10,
+              unloading: Math.floor(Math.random() * 30) + 10,
+          })),
+          onTimeVsLateData: [
+              { name: 'On-Time', value: 128 },
+              { name: 'Late', value: 14 },
+          ],
+          handlingRatio: { manual: 65, automated: 35 },
+      };
+  }, [filteredTimelineAppointments, filteredDocks, filteredOperations, vehicles, filteredVehicles]);
+  
+  const carriers = useMemo(() => customers.filter(c => c.customerType === CustomerType.Carrier), [customers]);
+  const vendors = useMemo(() => customers.filter(c => c.customerType === CustomerType.Vendor), [customers]);
 
   return (
     <div className="flex h-screen bg-gray-100 font-sans">
-      <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} activePage={activePage} setActivePage={setActivePage} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header 
-            onToggleSidebar={toggleSidebar} 
-            automationMode={automationMode}
-            onToggleAutomationMode={handleToggleAutomationMode}
-            warehouses={warehouses}
-            selectedWarehouseId={selectedWarehouseId}
-            onWarehouseChange={handleWarehouseChange}
-            onOpenAIAssistant={() => setIsAIAssistantOpen(true)}
+        <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} activePage={activePage} setActivePage={setActivePage} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+            <Header 
+                onToggleSidebar={toggleSidebar} 
+                automationMode={automationMode}
+                onToggleAutomationMode={handleToggleAutomationMode}
+                warehouses={warehouses}
+                selectedWarehouseId={selectedWarehouseId}
+                onWarehouseChange={handleWarehouseChange}
+                onOpenAIAssistant={() => setIsAIAssistantOpen(true)}
             />
-        <main className="flex-1 overflow-y-auto bg-gray-50 text-gray-800">
-          {renderPage()}
-        </main>
-      </div>
-      <GatePassModal vehicle={gatePassVehicle} onClose={() => setGatePassVehicle(null)} />
-      <AddRolePanel
-          isOpen={isAddRolePanelOpen}
-          onClose={() => setIsAddRolePanelOpen(false)}
-          onSave={handleSaveRole}
-      />
-      <SpotAppointmentModal 
-        isOpen={isSpotAppointmentModalOpen} 
-        onClose={() => setIsSpotAppointmentModalOpen(false)}
-        availableDocks={filteredDocks.filter(d => d.status === DockStatus.Available)}
-        carriers={carriers}
-        vendors={vendors}
-        onCreateAppointment={handleCreateSpotAppointment}
+            <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100">
+                {activePage === Page.Dashboard && <Dashboard data={dashboardData} docks={filteredDocks} vehicles={filteredVehicles} operations={filteredOperations} timelineAppointments={filteredTimelineAppointments} onSelectItem={handleSelectItem} />}
+                {activePage === Page.DockScheduler && <DockScheduler appointments={filteredTimelineAppointments} docks={filteredDocks} onOpenCreatePanel={handleOpenAppointmentPanelForCreate} onOpenEditPanel={handleOpenAppointmentPanelForEdit} onOpenSlotFinder={() => setIsSlotFinderModalOpen(true)} settings={appSettings} automationMode={automationMode} recentlyUpdatedDocks={recentlyUpdatedDocks} onRunPredictiveMaintenance={handleRunPredictiveMaintenance} onSetMaintenance={handleSetDockMaintenance} onClearMaintenance={handleClearDockMaintenance} onSelectItem={handleSelectItem} onBookAppointment={handleBookAppointmentForDock} currentDate={currentDate} onDateChange={setCurrentDate} timeSlots={timeSlots} />}
+                {activePage === Page.GateManagement && <GateManagement automationMode={automationMode} docks={filteredDocks} vehicles={vehicles} vendors={vendors} timelineAppointments={filteredTimelineAppointments} onCheckIn={handleCheckIn} onAssignToYard={handleAssignToYard} onAssignFromYard={handleAssignFromYard} onCheckOut={handleCheckOut} onSetDockAvailable={handleClearDockMaintenance} onOpenSpotAppointmentModal={() => setIsSpotAppointmentModalOpen(true)} onSelectItem={handleSelectItem} onSimulateArrival={handleSimulateArrival} />}
+                {activePage === Page.Operations && <Operations operations={filteredOperations} vehicles={filteredVehicles} docks={filteredDocks} onStartOperationSimple={handleStartOperationSimple} onCompleteOperation={handleCompleteOperation} onReportDelay={handleReportDelay} onOpenStartOperationModal={() => setIsStartOperationModalOpen(true)} />}
+                {activePage === Page.Customers && <Customers customers={customers} onDelete={handleDeleteCustomer} onOpenPanel={handleOpenCustomerPanel} />}
+                {activePage === Page.Reports && <Reports vehicles={vehicles} docks={docks} />}
+                {activePage === Page.Settings && <Settings users={users} settings={appSettings} onDeleteUser={handleDeleteUser} onSettingsChange={handleSettingsChange} onSaveRole={handleSaveRole} onOpenUserModal={handleOpenUserModal} />}
+                {activePage === Page.Help && <Help onSubmitSupportRequest={handleSubmitSupportRequest} />}
+                {activePage === Page.DockManagement && <Configurations warehouses={warehouses} docks={docks} onSaveWarehouse={handleSaveWarehouse} onSaveDock={handleSaveDock} onDeleteWarehouse={handleDeleteWarehouse} onDeleteDock={handleDeleteDock} onOpenWarehousePanel={(wh) => setWarehousePanelState({isOpen: true, warehouse: wh})} onOpenDockPanel={(dock, whId) => setDockPanelState({isOpen: true, dock, warehouseId: whId})} timeSlots={timeSlots} onSaveTimeSlots={setTimeSlots} />}
+            </main>
+        </div>
+        
+        {/* Modals and Panels */}
+        <ActivityFeed log={activityLog} />
+        <DetailPanel item={selectedDetailItem} vehicles={vehicles} operations={operations} vendors={vendors} documents={documents} docks={docks} timelineAppointments={timelineAppointments} onClose={handleCloseDetailPanel} onCheckOut={handleCheckOut} onReportDelay={handleReportDelay} onStartOperation={handleStartOperationFromModal} onBookAppointment={handleBookAppointmentForDock} currentDate={currentDate} />
+        <GatePassModal vehicle={gatePassVehicle} onClose={() => setGatePassVehicle(null)} />
+        <SpotAppointmentModal isOpen={isSpotAppointmentModalOpen} onClose={() => setIsSpotAppointmentModalOpen(false)} availableDocks={filteredDocks.filter(d => d.status === DockStatus.Available)} customers={customers} onCreateAppointment={handleCreateSpotAppointment} />
+        <AppointmentModal isOpen={appointmentPanelState.isOpen} onClose={handleCloseAppointmentPanel} appointment={appointmentPanelState.appointment} onSave={handleSaveAppointment} onDelete={handleDeleteAppointment} createData={appointmentPanelState.createData} docks={filteredTimelineDocks} />
+        <OptimalSlotFinderModal isOpen={isSlotFinderModalOpen} onClose={() => setIsSlotFinderModalOpen(false)} onFindSlot={handleFindOptimalSlot} isFinding={isFindingSlot} />
+        <WarehousePanel isOpen={warehousePanelState.isOpen} onClose={handleCloseWarehousePanel} onSave={handleSaveWarehouse} onDelete={handleDeleteWarehouse} warehouse={warehousePanelState.warehouse} />
+        <DockModal isOpen={dockPanelState.isOpen} onClose={handleCloseDockPanel} onSave={handleSaveDock} onDelete={handleDeleteDock} dock={dockPanelState.dock} warehouses={warehouses} currentWarehouseId={dockPanelState.warehouseId || selectedWarehouseId} />
+        <StartOperationModal isOpen={isStartOperationModalOpen} onClose={() => setIsStartOperationModalOpen(false)} vehicles={filteredVehicles.filter(v => v.status === VehicleStatus.Entered)} onStartOperation={handleStartOperationFromModal} />
+        <CreateUserModal 
+            isOpen={isUserModalOpen} 
+            onClose={handleCloseUserModal} 
+            onSave={handleSaveUser}
+            userToEdit={editingUser}
+            warehouses={warehouses}
         />
-       <StartOperationModal
-          isOpen={isStartOperationModalOpen}
-          onClose={() => setIsStartOperationModalOpen(false)}
-          vehicles={filteredVehicles.filter(v => v.status === VehicleStatus.Entered && !operations.some(op => op.vehicleId === v.id && op.status !== OperationStatus.Completed))}
-          onStartOperation={handleStartOperationFromModal}
+        <CustomerPanel 
+            isOpen={customerPanelState.isOpen}
+            onClose={handleCloseCustomerPanel}
+            onSave={handleSaveCustomer}
+            customer={customerPanelState.customer}
         />
-      <ActivityFeed log={activityLog} />
-      <DetailPanel
-        item={selectedDetailItem}
-        vehicles={filteredVehicles}
-        operations={filteredOperations}
-        vendors={vendors}
-        documents={filteredDocuments}
-        timelineAppointments={filteredTimelineAppointments}
-        onClose={handleCloseDetailPanel}
-        onCheckOut={handleCheckOut}
-        onReportDelay={handleReportDelay}
-        onStartOperation={() => {}}
-        onBookAppointment={handleBookAppointmentForDock}
-      />
-       <AppointmentModal
-        isOpen={appointmentPanelState.isOpen}
-        onClose={handleCloseAppointmentPanel}
-        appointment={appointmentPanelState.appointment}
-        createData={appointmentPanelState.createData}
-        docks={filteredTimelineDocks}
-        onSave={(appt) => {
-            handleSaveAppointment(appt);
-            handleCloseAppointmentPanel();
-        }}
-        onDelete={(id) => {
-            handleDeleteAppointment(id);
-            handleCloseAppointmentPanel();
-        }}
-      />
-       <OptimalSlotFinderModal
-        isOpen={isSlotFinderModalOpen}
-        onClose={() => setIsSlotFinderModalOpen(false)}
-        onFindSlot={handleFindOptimalSlot}
-        isFinding={isFindingSlot}
-      />
-      <AIAssistantModal
-        isOpen={isAIAssistantOpen}
-        onClose={() => setIsAIAssistantOpen(false)}
-        contextData={{ activePage, selectedWarehouseId, dashboardData }}
-        systemInstruction="You are a logistics dashboard assistant. Answer questions based on the provided JSON data context. Be concise and helpful."
-        quickActions={['Summarize KPIs', 'Which docks are available?', 'Any delays?']}
-       />
-      <WarehousePanel
-        isOpen={warehousePanelState.isOpen}
-        onClose={handleCloseWarehousePanel}
-        onSave={handleSaveWarehouse}
-        onDelete={handleDeleteWarehouse}
-        warehouse={warehousePanelState.warehouse}
-      />
-      <DockModal
-        isOpen={dockPanelState.isOpen}
-        onClose={handleCloseDockPanel}
-        onSave={handleSaveDock}
-        onDelete={handleDeleteDock}
-        dock={dockPanelState.dock}
-        warehouses={warehouses}
-        currentWarehouseId={dockPanelState.warehouseId || selectedWarehouseId}
-      />
+        <AIAssistantModal 
+            isOpen={isAIAssistantOpen} 
+            onClose={() => setIsAIAssistantOpen(false)}
+            contextData={{docks: filteredDocks, vehicles: filteredVehicles, operations: filteredOperations, appointments: filteredTimelineAppointments}}
+            systemInstruction="You are a helpful logistics coordinator AI. Analyze the provided data to answer questions about dock status, vehicle locations, and operational efficiency."
+            quickActions={["Which docks are available?", "Summarize any delays.", "When is the next appointment?"]}
+        />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { TimelineAppointment, TimelineAppointmentStatus } from '../types.ts';
 import { PencilIcon, AppointmentsIcon } from './icons/Icons.tsx';
@@ -5,6 +6,7 @@ import { PencilIcon, AppointmentsIcon } from './icons/Icons.tsx';
 interface AppointmentListProps {
   appointments: TimelineAppointment[];
   onOpenEditPanel: (appointment: TimelineAppointment) => void;
+  isPast: boolean;
 }
 
 const getStatusStyles = (status: TimelineAppointmentStatus): string => {
@@ -23,7 +25,7 @@ const StatusBadge: React.FC<{ status: TimelineAppointmentStatus }> = ({ status }
     </span>
 );
 
-const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onOpenEditPanel }) => {
+const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onOpenEditPanel, isPast }) => {
     if (appointments.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-center bg-white p-10 rounded-xl shadow-sm">
@@ -69,8 +71,9 @@ const AppointmentList: React.FC<AppointmentListProps> = ({ appointments, onOpenE
                                 <td className="px-6 py-4 text-center">
                                     <button
                                         onClick={() => onOpenEditPanel(appt)}
-                                        className="text-gray-400 hover:text-brand-accent p-2 rounded-full hover:bg-gray-100 transition-colors"
-                                        title="Edit Appointment"
+                                        disabled={isPast}
+                                        className="text-gray-400 hover:text-brand-accent p-2 rounded-full hover:bg-gray-100 transition-colors disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                        title={isPast ? "Cannot edit past appointments" : "Edit Appointment"}
                                     >
                                         <PencilIcon className="w-5 h-5" />
                                     </button>
